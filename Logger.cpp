@@ -22,24 +22,54 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 */
 
+#include <iostream>
+
 #include "Logger.h"
 
 using namespace std;
 
 Logger::ptr_type Logger::_instance;
 
-Logger::~Logger()
+Logger::Logger()
 {
 
+}
+
+Logger::~Logger()
+{
+    try
+    {
+        CloseLogFile();
+    }
+    catch(const exception & exc)
+    {
+        cerr << exc.what() << '\n';
+    }
+    
 }
 
 Logger::ptr_type & Logger::Instance()
 {
     if (!_instance)
     {
-        _instance = make_shared<Logger>();
+        _instance = ptr_type(new Logger());
     }
 
     return _instance;
 }
 
+void Logger::OpenLogFile(const std::string & fileName)
+{
+    CloseLogFile();
+
+
+}
+
+void Logger::CloseLogFile()
+{
+    if (!_logFile)
+        return;
+
+    _logFile->close();
+    _logFile.reset();
+}

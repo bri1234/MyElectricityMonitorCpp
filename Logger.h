@@ -27,18 +27,36 @@ IN THE SOFTWARE.
 #include <fstream>
 #include <memory>
 
+/// @brief A class for logging.
 class Logger
 {
 public:
     typedef std::shared_ptr <Logger> ptr_type;
-
-    ~Logger();
+    typedef std::shared_ptr <std::ofstream> ostream_ptr_type;
     
+    /// @brief Destructor.
+    ~Logger();
+
+    /// @brief Returns the logger instance.
+    /// @return Pointer to instance.
     static ptr_type & Instance();
+
+    /// @brief Opens a new log file.
+    /// @param fileName The log file name.
+    void OpenLogFile(const std::string & fileName);
+
+    /// @brief Closes the log file.
+    void CloseLogFile();
 
 private:
     static ptr_type _instance;
 
+    ostream_ptr_type _logFile;
+
+    Logger();
+
+    Logger(const Logger &) = delete;
+    Logger & operator=(const Logger &) = delete;
 };
 
 #define LOG() 

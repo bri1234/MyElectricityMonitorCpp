@@ -11,10 +11,10 @@ add_executable(MyElectricityMonitor)
 
 target_sources(MyElectricityMonitor
     PRIVATE
-        main.cpp
+        Logger.cpp
         Database.cpp
         Utils.cpp
-        Logger.cpp
+        main.cpp
 )
 
 target_link_libraries(MyElectricityMonitor
