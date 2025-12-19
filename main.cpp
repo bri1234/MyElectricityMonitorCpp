@@ -24,13 +24,31 @@ IN THE SOFTWARE.
 
 #include <iostream>
 
+#include "Logger.h"
 #include "Database.h"
 
 using namespace std;
 
 int main(int argc, char **argv)
 {
-    cout << "TEST" << endl;
+    (void)argc;
+    (void)argv;
+    
+    try
+    {
+        string logFile = Logger::CreateLinuxLogFilename("MyElectricityMonitor");
+        Logger::Instance().OpenLogFile(logFile);
+
+        LOG_INFO("********************************");
+        LOG_INFO("*** PROGRAM STARTET          ***");
+        LOG_INFO("********************************");
+
+        cout << "TEST" << endl;
+    }
+    catch(const exception& e)
+    {
+        cerr << e.what() << endl;
+    }
     
     return 0;
 }

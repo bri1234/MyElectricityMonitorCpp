@@ -39,7 +39,7 @@ public:
 
     /// @brief Returns the logger instance.
     /// @return Pointer to instance.
-    static ptr_type & Instance();
+    static Logger & Instance();
 
     /// @brief Opens a new log file.
     /// @param fileName The log file name.
@@ -47,6 +47,28 @@ public:
 
     /// @brief Closes the log file.
     void CloseLogFile();
+
+    /// @brief Logs an information message.
+    /// @param fileName The source code filename.
+    /// @param lineNumber The source code line number.
+    /// @param message The log message.
+    void LogInfo(const std::string & fileName, int lineNumber, const std::string & message);
+
+    /// @brief Logs an error message.
+    /// @param fileName The source code filename.
+    /// @param lineNumber The source code line number.
+    /// @param message The error message.
+    void LogError(const std::string & fileName, int lineNumber, const std::string & message);
+
+    /// @brief Logs an error message.
+    /// @param fileName The source code filename.
+    /// @param lineNumber The source code line number.
+    /// @param exc The error message.
+    void LogError(const std::string & fileName, int lineNumber, const std::exception & exc);
+
+    /// @brief Creates a log filename for linux/unix systems.
+    /// @return The log filename.
+    static std::string CreateLinuxLogFilename(const std::string & applicationName);
 
 private:
     static ptr_type _instance;
@@ -57,6 +79,11 @@ private:
 
     Logger(const Logger &) = delete;
     Logger & operator=(const Logger &) = delete;
+
+    void LogCurrentTime(std::ostream & os);
+    void Log(std::ostream & os, const std::string & messageType, const std::string & fileName, int lineNumber, const std::string & message);
 };
 
-#define LOG() 
+#define LOG_INFO(MESSAGE) Logger::Instance().LogInfo(__FILE__, __LINE__, MESSAGE)
+
+#define LOG_ERROR(ERROR_MESSAGE) Logger::Instance().LogError(__FILE__, __LINE__, ERROR_MESSAGE)

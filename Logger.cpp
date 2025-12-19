@@ -23,6 +23,10 @@ IN THE SOFTWARE.
 */
 
 #include <iostream>
+#include <stdexcept>
+#include <chrono>
+#include <format>
+#include <filesystem>
 
 #include "Logger.h"
 
@@ -48,21 +52,26 @@ Logger::~Logger()
     
 }
 
-Logger::ptr_type & Logger::Instance()
+Logger & Logger::Instance()
 {
     if (!_instance)
     {
         _instance = ptr_type(new Logger());
     }
 
-    return _instance;
+    return *_instance;
 }
 
 void Logger::OpenLogFile(const std::string & fileName)
 {
     CloseLogFile();
 
+    ostream_ptr_type logFile = make_shared<ofstream>(fileName);
 
+    if (!(*logFile))
+        throw runtime_error("Logger: can not open file: " + fileName);
+
+    _logFile = logFile;
 }
 
 void Logger::CloseLogFile()
@@ -72,4 +81,50 @@ void Logger::CloseLogFile()
 
     _logFile->close();
     _logFile.reset();
+}
+
+void Logger::LogInfo(const std::string & fileName, int lineNumber, const std::string & message)
+{
+    if (!_logFile || !(*_logFile))
+    {
+        Log(cout, "INFO", fileName, lineNumber, message);
+        return;
+    }
+
+    Log(*_logFile, "INFO", fileName, lineNumber, message);
+}
+
+void Logger::LogError(const std::string & fileName, int lineNumber, const std::string & message)
+{
+    if (!_logFile || !(*_logFile))
+    {
+        Log(cerr, "ERROR", fileName, lineNumber, message);
+        return;
+    }
+
+    Log(*_logFile, "ERROR", fileName, lineNumber, message);
+}
+
+void Logger::LogError(const std::string & fileName, int lineNumber, const std::exception & exc)
+{
+    LogError(fileName, lineNumber, exc.what());
+}
+
+void Logger::Log(std::ostream & os, const std::string & messageType, const std::string & fileName, int lineNumber, const std::string & message)
+{
+    LogCurrentTime(os);
+    os << " " << messageType << ": " << message << "(Line: " << lineNumber << " File: " << fileName << ")" << endl;
+}
+
+void Logger::LogCurrentTime(std::ostream & os)
+{
+    os << format("{:%Y-%m-%d %H:%M:%S}", chrono::system_clock::now());
+}
+
+std::string Logger::CreateLinuxLogFilename(const std::string & applicationName)
+{
+    filesystem::path fullPath = "/var/log";
+    fullPath /= applicationName + ".log";
+
+    return fullPath;
 }

@@ -26,6 +26,7 @@ IN THE SOFTWARE.
 
 #include "Database.h"
 #include "Utils.h"
+#include "Logger.h"
 
 using namespace std;
 using namespace Utils;
@@ -57,8 +58,7 @@ Database::~Database()
     }
     catch(const exception & e)
     {
-        // TODO: log in file
-        // std::cerr << e.what() << '\n';
+        LOG_ERROR(e);
     }
 }
 
