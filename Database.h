@@ -72,6 +72,8 @@ private:
     /// @param resultCode The result code to be checked.
     void CheckResult(int resultCode);
 
-
+    /// @brief Executes an SQL command.
+    /// @param sql The SQL command to be executed.
+    void SqlExecute(const std::string & sql);
 };
 

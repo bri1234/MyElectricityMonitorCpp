@@ -24,13 +24,16 @@ IN THE SOFTWARE.
 
 #include "ElectricityMonitor.h"
 
-ElectricityMonitor::ElectricityMonitor(const std::string & databaseFilename)
-: _databaseFilename(databaseFilename)
+#include "Database.h"
+
+ElectricityMonitor::ElectricityMonitor()
 {
 
 }
 
-void ElectricityMonitor::Run()
+void ElectricityMonitor::Run(Configuration & configuration)
 {
+    Database database(configuration.GetDatabaseFilepath(), configuration.GetInverterNumberOfChannels());
+
 
 }

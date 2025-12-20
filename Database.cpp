@@ -39,9 +39,7 @@ Database::Database(const std::string & fileName, int numberOfInverterChannels)
     for (int channel = 0; channel < numberOfInverterChannels; channel++)
     {
         for (auto & reading : _READINGS_INVERTER_CHANNEL)
-        {
             _columnsInverter.push_back(format("CH{} {}", channel, reading));
-        }
     }
 
     AppendRange(_columnsInverter, _READINGS_INVERTER);
@@ -86,7 +84,43 @@ void Database::CheckResult(int resultCode)
     throw DatabaseError(format("{} (error code {})", sqlite3_errstr(resultCode), resultCode));
 }
 
+void Database::SqlExecute(const std::string & sql)
+{
+    char * errMsg = nullptr;
+    CheckResult(sqlite3_exec(_database, sql.c_str(), nullptr, nullptr, &errMsg));
+
+    if (errMsg)
+    {
+        string errorMessage(errMsg);
+        sqlite3_free(errMsg);
+        throw DatabaseError(errorMessage);
+    }
+}
+
 void Database::CreateTablesIfNotExists()
 {
+    vector <string> columns;
 
+    // create inverter data table
+    for (const auto & column : _columnsInverter)
+        columns.push_back(format("\"{}\" REAL", column));
+
+    string columnsStr = Join(columns, ",");
+
+    string sql = format("CREATE TABLE IF NOT EXISTS Inverter (\"time\" INT NOT NULL PRIMARY KEY,{});", columnsStr);
+    SqlExecute(sql);
+
+    // create electricity meter 1 data table
+    columns.clear();
+    for (const auto & column : _COLUMNS_ELECTRICITY_METER)
+        columns.push_back(format("\"{}\" REAL", column));
+
+    columnsStr = Join(columns, ",");
+
+    sql = format("CREATE TABLE IF NOT EXISTS ElectricityMeter0 (\"time\" INT NOT NULL PRIMARY KEY,{});", columnsStr);
+    SqlExecute(sql);
+    
+    // create electricity meter 2 data table
+    sql = format("CREATE TABLE IF NOT EXISTS ElectricityMeter1 (\"time\" INT NOT NULL PRIMARY KEY,{});", columnsStr);
+    SqlExecute(sql);
 }

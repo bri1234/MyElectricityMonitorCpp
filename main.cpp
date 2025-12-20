@@ -64,10 +64,10 @@ int main(int argc, char **argv)
 
                 try
                 {
-                    ElectricityMonitor electricityMonitor(configuration.GetDatabaseFilepath());
+                    ElectricityMonitor electricityMonitor;
 
                     LOG_INFO("Start electricity monitor");
-                    electricityMonitor.Run();
+                    electricityMonitor.Run(configuration);
                 }
                 catch(const std::exception& e)
                 {

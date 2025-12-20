@@ -26,6 +26,7 @@ IN THE SOFTWARE.
 
 #include <vector>
 #include <string>
+#include <sstream>
 
 namespace Utils
 {
@@ -39,6 +40,30 @@ namespace Utils
         dest.insert(dest.end(), source.begin(), source.end());
     }
 
+    /// @brief Joins the elements of a vector into a single string with a specified separator.
+    /// @tparam T The type of the vector elements.
+    /// @param itemList The list of items to join.
+    /// @param separator The separator string.
+    /// @return The joined string.
+    template <typename T>
+    std::string Join(std::vector <T> & itemList, const std::string & separator)
+    {
+        std::ostringstream os;
+        bool first = true;
+
+        for (const auto & item : itemList)
+        {
+            if (first)
+                first = false;
+            else
+                os << separator;
+
+            os << item;
+        }
+
+        return os.str();
+    }
+    
     /// @brief Converts a string to a double.
     /// @param str The string to convert.
     /// @return The converted double.

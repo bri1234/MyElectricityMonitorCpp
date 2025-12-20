@@ -24,7 +24,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 */
 
-#include "Database.h"
+#include "Configuration.h"
 
 /// @brief The main program logic for monitoring.
 class ElectricityMonitor
@@ -32,14 +32,12 @@ class ElectricityMonitor
 public:
 
     /// @brief Constructor.
-    /// @param databaseFilename The filename of the database where all data is stored.
-    ElectricityMonitor(const std::string & databaseFilename);
+    ElectricityMonitor();
 
     /// @brief The main loop.
-    void Run();
+    void Run(Configuration & configuration);
 
 private:
-    std::string _databaseFilename;
 
 };
 
