@@ -28,11 +28,14 @@ IN THE SOFTWARE.
 #include <string>
 #include <stdexcept>
 #include <vector>
+#include <map>
 
 /// @brief Class to store the readings in a SQLite database.
 class Database
 {
 public:
+
+    typedef std::map <std::string, double> readings_type;
 
     /// @brief Database error.
     class DatabaseError : public std::runtime_error
@@ -47,6 +50,15 @@ public:
     Database(const std::string & fileName, int numberOfInverterChannels);
 
     virtual ~Database();
+
+    /// @brief Inserts the electricity meter readings into the database.
+    /// @param electricityMeterNum The electricity meter 0 or 1.
+    /// @param readings The electricity meter readings: "+A", "+A T1", "+A T2", "-A", "P", "P L1", "P L2", "P L3".
+    void InsertReadingsElectricityMeter(int electricityMeterNum, const readings_type & readings);
+
+    /// @brief Inserts the inverter readings into the database.
+    /// @param readings The inverter readings: "CH0 DC V", "CH0 DC I", "CH0 DC P", "CH0 DC E day", "CH0 DC E total", "CH1 DC V", "CH1 DC I", "CH1 DC P", "CH1 DC E day", "CH1 DC E total", "AC V", "AC I", "AC F", "AC P", "AC Q", "AC PF", "T".
+    void InsertReadingsInverter(const readings_type & readings);
 
 private:
 

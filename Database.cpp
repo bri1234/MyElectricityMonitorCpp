@@ -23,6 +23,7 @@ IN THE SOFTWARE.
 */
 
 #include <format>
+#include <ctime>
 
 #include "Database.h"
 #include "Utils.h"
@@ -124,3 +125,53 @@ void Database::CreateTablesIfNotExists()
     sql = format("CREATE TABLE IF NOT EXISTS ElectricityMeter1 (\"time\" INT NOT NULL PRIMARY KEY,{});", columnsStr);
     SqlExecute(sql);
 }
+
+void Database::InsertReadingsElectricityMeter(int electricityMeterNum, const readings_type & readings)
+{
+    if ((electricityMeterNum < 0) || (electricityMeterNum > 1))
+        throw DatabaseError(format("Invalid electricity meter number: {}", electricityMeterNum));
+    
+    ostringstream os;
+
+    os << "INSERT INTO ElectricityMeter";
+    os << electricityMeterNum;
+    os << " VALUES (" << time(nullptr);
+
+    for (const auto & key : _COLUMNS_ELECTRICITY_METER)
+    {
+        os << ",";
+
+        auto it = readings.find(key);
+        if (it != readings.end())
+            os << it->second;
+        else
+            os << 0.0;
+    }
+
+    os << ");";
+
+    SqlExecute(os.str());
+}
+
+void Database::InsertReadingsInverter(const readings_type & readings)
+{
+    ostringstream os;
+
+    os << "INSERT INTO Inverter VALUES (" << time(nullptr);
+
+    for (const auto & key : _columnsInverter)
+    {
+        os << ",";
+
+        auto it = readings.find(key);
+        if (it != readings.end())
+            os << it->second;
+        else
+            os << 0.0;
+    }
+
+    os << ");";
+
+    SqlExecute(os.str());
+}
+
