@@ -39,10 +39,12 @@ int main(int argc, char **argv)
     string configurationFile;
     if (argc > 1)
         configurationFile = argv[1];
-    
+    else
+        configurationFile = "configuration.json";
+
     try
     {
-        string logFile = UnixUtils::CreateUnixLogFilename("MyElectricityMonitor");
+        string logFile = Utils::CreateUnixLogFilepath("MyElectricityMonitor");
         Logger::Instance().OpenLogFile(logFile);
 
         LOG_INFO("********************************");
@@ -52,8 +54,7 @@ int main(int argc, char **argv)
         try
         {
             Configuration configuration;
-            if (configurationFile.length() > 0)
-                configuration.Load(configurationFile);
+            configuration.Load(configurationFile);
 
             int retryCount = 0;
 
@@ -63,7 +64,7 @@ int main(int argc, char **argv)
 
                 try
                 {
-                    ElectricityMonitor electricityMonitor(configuration.GetDatabaseFilename());
+                    ElectricityMonitor electricityMonitor(configuration.GetDatabaseFilepath());
 
                     LOG_INFO("Start electricity monitor");
                     electricityMonitor.Run();
@@ -72,6 +73,7 @@ int main(int argc, char **argv)
                 {
                     LOG_ERROR(e);
                 }
+                LOG_INFO("Electricity monitor stopped");
 
                 auto endTime = chrono::system_clock::now();
                 int elapsedTimeMinutes = chrono::duration_cast<chrono::minutes>(endTime - startTime).count();
@@ -94,7 +96,8 @@ int main(int argc, char **argv)
         {
             LOG_ERROR(e);
         }
-        
+
+        LOG_INFO("*** PROGRAM STOPPED ***");
     }
     catch(const exception & e)
     {

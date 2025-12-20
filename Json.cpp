@@ -1,3 +1,4 @@
+#include "Json.h"
 /*
 Copyright (C) 2025  Torsten Brischalle
 email: torsten@brischalle.de
@@ -22,45 +23,43 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 */
 
-#include "UnixUtils.h"
+#include "Json.h"
 
-#include <stdlib.h>
-#include <unistd.h>
-#include <pwd.h>
-#include <filesystem>
+#include <stdexcept>
 
 using namespace std;
 
-namespace Utils
+Json::Json()
+: _jsonRoot(nullptr)
 {
-    std::string GetHomeDirectory()
-    {
-        string homeDir;
-
-        const char *varHome = getenv("HOME");
-        
-        if (varHome)
-        {
-            homeDir = varHome;
-        }
-        else
-        {
-            auto pw = getpwuid(getuid());
-            if (pw)
-                homeDir = pw->pw_dir;
-        }
-
-        return homeDir;
-    }
-
-    std::string CreateUnixLogFilepath(const std::string & applicationName)
-    {
-        
-        filesystem::path fullPath = GetHomeDirectory();
-        fullPath /= applicationName + ".log";
-
-        return fullPath;
-    }
-
 }
 
+Json::~Json()
+{
+    FreeJsonRoot();
+}
+
+void Json::LoadFromFile(const std::string & filename)
+{
+    FreeJsonRoot();
+
+    _jsonRoot = json_object_from_file(filename.c_str());
+    if (!_jsonRoot)
+        throw runtime_error("Failed to load JSON from file: " + filename);
+}
+
+void Json::FreeJsonRoot()
+{
+    if (!_jsonRoot)
+
+    json_object_put(_jsonRoot);
+    _jsonRoot = nullptr;
+}
+
+json_object * Json::GetRootObject() const
+{
+    if (!_jsonRoot)
+        throw runtime_error("JSON root object is null.");
+        
+    return _jsonRoot;
+}

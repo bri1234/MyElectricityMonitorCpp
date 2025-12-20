@@ -44,7 +44,7 @@ Database::Database(const std::string & fileName, int numberOfInverterChannels)
         }
     }
 
-    append_range(_columnsInverter, _READINGS_INVERTER);
+    AppendRange(_columnsInverter, _READINGS_INVERTER);
 
     OpenDatabase(fileName);
     CreateTablesIfNotExists();

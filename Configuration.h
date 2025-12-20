@@ -24,7 +24,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 */
 
-#include "Database.h"
+#include "Json.h"
 
 /// @brief The program configuration.
 class Configuration
@@ -38,9 +38,38 @@ public:
     /// @param configurationFilename The filename of the configuration file.
     void Load(const std::string & configurationFilename);
 
-    const std::string & GetDatabaseFilename() const { return _databaseFilename; }
+    /// @brief Returns the database filepath.
+    /// @return The database filepath.
+    const std::string & GetDatabaseFilepath() const { return _databaseFilepath; }
     
+    /// @brief Returns the data acquisition period in seconds.
+    /// @return The data acquisition period in seconds.
+    double GetDataAcquisitionPeriod() const { return _dataAcquisitionPeriod; }
+
+    /// @brief Returns the inverter serial number.
+    /// @return The inverter serial number.
+    const std::string & GetInverterSerialNumber() const { return _inverterSerialNumber; }
+
+    /// @brief Returns the number of channels of the inverter.
+    /// @return The number of channels of the inverter.
+    int GetInverterNumberOfChannels() const { return _inverterNumberOfChannels; }
+
 private:
-    std::string _databaseFilename;
+    std::string _inverterSerialNumber;
+    int _inverterNumberOfChannels;
+
+    std::string _databaseFilepath;
+
+    double _dataAcquisitionPeriod;
+
+    static std::string GetStringValue(const Json & json, const std::string & topic, const std::string & key);
+    static std::string GetStringValue(const Json & json, const std::string & topic, const std::string & key, const std::string & defaultValue);
+
+    static double GetDoubleValue(const Json & json, const std::string & topic, const std::string & key);
+    static double GetDoubleValue(const Json & json, const std::string & topic, const std::string & key, double defaultValue);
+    
+    static int GetIntValue(const Json & json, const std::string & topic, const std::string & key);
+    static int GetIntValue(const Json & json, const std::string & topic, const std::string & key, int defaultValue);
+    
 };
 

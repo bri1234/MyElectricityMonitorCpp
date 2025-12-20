@@ -25,14 +25,22 @@ IN THE SOFTWARE.
 */
 
 #include <vector>
+#include <string>
 
 namespace Utils
 {
-
+    /// @brief Appends the contents of one vector to another.
+    /// @tparam T The type of the vector elements.
+    /// @param dest The destination vector.
+    /// @param source The source vector to append.
     template <typename T>
-    void append_range(std::vector <T> & dest, const std::vector <T> & source)
+    void AppendRange(std::vector <T> & dest, const std::vector <T> & source)
     {
         dest.insert(dest.end(), source.begin(), source.end());
     }
 
+    /// @brief Converts a string to a double.
+    /// @param str The string to convert.
+    /// @return The converted double.
+    double StrToDouble(const std::string & str);
 }

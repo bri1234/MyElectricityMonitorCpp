@@ -17,6 +17,7 @@ target_sources(MyElectricityMonitor
         UnixUtils.cpp
         ElectricityMonitor.cpp
         Configuration.cpp
+        Json.cpp
         main.cpp
 )
 
@@ -28,4 +29,5 @@ target_compile_options(MyElectricityMonitor
 
 target_link_libraries(MyElectricityMonitor
     PRIVATE
-        sqlite3)
+        sqlite3
+        json-c)

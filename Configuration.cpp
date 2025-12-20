@@ -25,20 +25,131 @@ IN THE SOFTWARE.
 #include "Configuration.h"
 
 #include "UnixUtils.h"
+#include "Utils.h"
+#include "Logger.h"
+#include "Json.h"
 
 #include <filesystem>
+#include <format>
 
-using namespace UnixUtils;
+using namespace Utils;
 using namespace std;
 
 Configuration::Configuration()
+: _inverterSerialNumber("00000000")
+, _inverterNumberOfChannels(2)
+, _databaseFilepath("electricity_monitor_readings.db")
+, _dataAcquisitionPeriod(30.0)
 {
-    _databaseFilename = filesystem::path(GetHomeDirectory()) / "electricity_monitor_readings.db";
 }
 
 void Configuration::Load(const std::string & configurationFilename)
 {
-    (void)configurationFilename;
+    if (!filesystem::exists(configurationFilename))
+        throw runtime_error(format("Configuration file not found: {}", configurationFilename));
 
+    Json json;
+    json.LoadFromFile(configurationFilename);
+
+    _inverterSerialNumber = GetStringValue(json, "Inverter", "SerialNumber", _inverterSerialNumber);
+    _inverterNumberOfChannels = GetIntValue(json, "Inverter", "NumberOfChannels", _inverterNumberOfChannels);
+
+    _databaseFilepath = GetStringValue(json, "Database", "Filepath", _databaseFilepath);
+    _dataAcquisitionPeriod = GetDoubleValue(json, "Database", "DataAcquisitionPeriod", _dataAcquisitionPeriod);
+
+    LOG_INFO(std::string("Loaded configuration from: ") + configurationFilename);
+}
+
+double Configuration::GetDoubleValue(const Json & json, const std::string & topic, const std::string & key)
+{
+    json_object * objTopic = nullptr;
+    json_object * objKey = nullptr;
+    auto root = json.GetRootObject();
+
+    if (!json_object_object_get_ex(root, topic.c_str(), &objTopic))
+        throw runtime_error("Topic not found in JSON: " + topic);
+
+    if (!json_object_object_get_ex(objTopic, key.c_str(), &objKey))
+        throw runtime_error("Key not found in JSON topic '" + topic + "': " + key);
+
+    if (json_object_get_type(objKey) == json_type_int)
+        return json_object_get_int(objKey);
+
+    if (json_object_get_type(objKey) == json_type_double)
+        return json_object_get_double(objKey);
+
+    throw runtime_error("Key is not a number in JSON topic '" + topic + "': " + key);
+}
+
+double Configuration::GetDoubleValue(const Json & json, const std::string & topic, const std::string & key, double defaultValue)
+{
+    try
+    {
+        return GetDoubleValue(json, topic, key);
+    }
+    catch(const std::exception& e)
+    {
+        return defaultValue;
+    }
+}
+
+int Configuration::GetIntValue(const Json & json, const std::string & topic, const std::string & key)
+{
+    json_object * objTopic = nullptr;
+    json_object * objKey = nullptr;
+    auto root = json.GetRootObject();
+
+    if (!json_object_object_get_ex(root, topic.c_str(), &objTopic))
+        throw runtime_error("Topic not found in JSON: " + topic);
+
+    if (!json_object_object_get_ex(objTopic, key.c_str(), &objKey))
+        throw runtime_error("Key not found in JSON topic '" + topic + "': " + key);
+
+    if (json_object_get_type(objKey) == json_type_int)
+        return json_object_get_int(objKey);
+
+    throw runtime_error("Key is not a number in JSON topic '" + topic + "': " + key);
+}
+
+int Configuration::GetIntValue(const Json & json, const std::string & topic, const std::string & key, int defaultValue)
+{
+    try
+    {
+        return GetIntValue(json, topic, key);
+    }
+    catch(const std::exception& e)
+    {
+        return defaultValue;
+    }
+}
+
+std::string Configuration::GetStringValue(const Json & json, const std::string & topic, const std::string & key)
+{
+    json_object * objTopic = nullptr;
+    json_object * objKey = nullptr;
+    auto root = json.GetRootObject();
+
+    if (!json_object_object_get_ex(root, topic.c_str(), &objTopic))
+        throw runtime_error("Topic not found in JSON: " + topic);
+
+    if (!json_object_object_get_ex(objTopic, key.c_str(), &objKey))
+        throw runtime_error("Key not found in JSON topic '" + topic + "': " + key);
+
+    if (json_object_get_type(objKey) == json_type_string)
+        return string(json_object_get_string(objKey));
+
+    throw runtime_error("Key is not a string in JSON topic '" + topic + "': " + key);
+}
+
+std::string Configuration::GetStringValue(const Json & json, const std::string & topic, const std::string & key, const std::string & defaultValue)
+{
+    try
+    {
+        return GetStringValue(json, topic, key);
+    }
+    catch(const std::exception& e)
+    {
+        return defaultValue;
+    }
 }
 

@@ -1,0 +1,22 @@
+
+{
+    "Location":
+    {
+        "City": "Freiberg",
+        "Region": "Germany",
+        "Timezone": "Europe/Berlin",
+        "Latitude": 50.92,
+        "Longitude": 13.33
+    },
+    "Inverter":
+    {
+        "SerialNumber": "114184020874",
+        "NumberOfChannels": 2
+    },
+    "Database":
+    {
+        "Filepath": "/home/torsten/Database/electricity_monitor_readings.db",
+        "DataAcquisitionPeriod": 30
+    }
+}
+

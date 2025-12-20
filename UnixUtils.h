@@ -26,7 +26,7 @@ IN THE SOFTWARE.
 
 #include <string>
 
-namespace UnixUtils
+namespace Utils
 {
     /// @brief Returns the home directory.
     /// @return The home directory.
@@ -34,6 +34,6 @@ namespace UnixUtils
 
     /// @brief Creates a log filename for linux/unix systems.
     /// @return The log filename.
-    std::string CreateUnixLogFilename(const std::string & applicationName);
+    std::string CreateUnixLogFilepath(const std::string & applicationName);
 
 }

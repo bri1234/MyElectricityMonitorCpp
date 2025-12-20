@@ -1,3 +1,5 @@
+#pragma once
+
 /*
 Copyright (C) 2025  Torsten Brischalle
 email: torsten@brischalle.de
@@ -22,45 +24,29 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 */
 
-#include "UnixUtils.h"
+#include <json-c/json.h>
+#include <string>
 
-#include <stdlib.h>
-#include <unistd.h>
-#include <pwd.h>
-#include <filesystem>
-
-using namespace std;
-
-namespace Utils
+/// @brief A class for handling JSON data.
+class Json
 {
-    std::string GetHomeDirectory()
-    {
-        string homeDir;
+public:
 
-        const char *varHome = getenv("HOME");
-        
-        if (varHome)
-        {
-            homeDir = varHome;
-        }
-        else
-        {
-            auto pw = getpwuid(getuid());
-            if (pw)
-                homeDir = pw->pw_dir;
-        }
+    Json();
+    ~Json();
 
-        return homeDir;
-    }
+    /// @brief Loads JSON data from a file.
+    /// @param filename The filename.
+    void LoadFromFile(const std::string & filename);
 
-    std::string CreateUnixLogFilepath(const std::string & applicationName)
-    {
-        
-        filesystem::path fullPath = GetHomeDirectory();
-        fullPath /= applicationName + ".log";
+    /// @brief Returns the root JSON object.
+    /// @return The root JSON object.
+    json_object * GetRootObject() const;
 
-        return fullPath;
-    }
-
-}
+private:
+    json_object *_jsonRoot;
+    
+    /// @brief Frees the JSON root object.
+    void FreeJsonRoot();
+};
 

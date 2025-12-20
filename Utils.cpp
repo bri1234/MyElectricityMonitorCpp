@@ -23,3 +23,26 @@ IN THE SOFTWARE.
 */
 
 #include "Utils.h"
+
+#include <stdexcept>
+
+using namespace std;
+
+namespace Utils
+{
+
+    double StrToDouble(const std::string & str)
+    {
+        size_t idx = 0;
+        double d = stod(str, &idx);
+
+        for (; idx < str.size(); idx++)
+        {
+            if (!isspace(str[idx]))
+                throw invalid_argument("Invalid double string: " + str);
+        }   
+        
+        return d;
+    }
+
+}
