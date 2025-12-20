@@ -24,16 +24,22 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 */
 
-#include <string>
+#include "Database.h"
 
-namespace UnixUtils
+/// @brief The main program logic for monitoring.
+class ElectricityMonitor
 {
-    /// @brief Returns the home directory.
-    /// @return The home directory.
-    std::string GetHomeDirectory();
+public:
 
-    /// @brief Creates a log filename for linux/unix systems.
-    /// @return The log filename.
-    std::string CreateUnixLogFilename(const std::string & applicationName);
+    /// @brief Constructor.
+    /// @param databaseFilename The filename of the database where all data is stored.
+    ElectricityMonitor(const std::string & databaseFilename);
 
-}
+    /// @brief The main loop.
+    void Run();
+
+private:
+    std::string _databaseFilename;
+
+};
+

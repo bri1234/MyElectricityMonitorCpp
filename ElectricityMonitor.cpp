@@ -1,5 +1,3 @@
-#pragma once
-
 /*
 Copyright (C) 2025  Torsten Brischalle
 email: torsten@brischalle.de
@@ -24,16 +22,15 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 */
 
-#include <string>
+#include "ElectricityMonitor.h"
 
-namespace UnixUtils
+ElectricityMonitor::ElectricityMonitor(const std::string & databaseFilename)
+: _databaseFilename(databaseFilename)
 {
-    /// @brief Returns the home directory.
-    /// @return The home directory.
-    std::string GetHomeDirectory();
 
-    /// @brief Creates a log filename for linux/unix systems.
-    /// @return The log filename.
-    std::string CreateUnixLogFilename(const std::string & applicationName);
+}
+
+void ElectricityMonitor::Run()
+{
 
 }

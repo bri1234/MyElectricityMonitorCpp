@@ -15,6 +15,8 @@ target_sources(MyElectricityMonitor
         Database.cpp
         Utils.cpp
         UnixUtils.cpp
+        ElectricityMonitor.cpp
+        Configuration.cpp
         main.cpp
 )
 

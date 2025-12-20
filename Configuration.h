@@ -24,16 +24,23 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 */
 
-#include <string>
+#include "Database.h"
 
-namespace UnixUtils
+/// @brief The program configuration.
+class Configuration
 {
-    /// @brief Returns the home directory.
-    /// @return The home directory.
-    std::string GetHomeDirectory();
+public:
 
-    /// @brief Creates a log filename for linux/unix systems.
-    /// @return The log filename.
-    std::string CreateUnixLogFilename(const std::string & applicationName);
+    /// @brief Constructor.
+    Configuration();
 
-}
+    /// @brief Loads the configuration from file.
+    /// @param configurationFilename The filename of the configuration file.
+    void Load(const std::string & configurationFilename);
+
+    const std::string & GetDatabaseFilename() const { return _databaseFilename; }
+    
+private:
+    std::string _databaseFilename;
+};
+

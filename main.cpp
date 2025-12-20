@@ -23,17 +23,22 @@ IN THE SOFTWARE.
 */
 
 #include <iostream>
+#include <chrono>
+#include <thread>
 
 #include "Logger.h"
 #include "Database.h"
 #include "UnixUtils.h"
+#include "ElectricityMonitor.h"
+#include "Configuration.h"
 
 using namespace std;
 
 int main(int argc, char **argv)
 {
-    (void)argc;
-    (void)argv;
+    string configurationFile;
+    if (argc > 1)
+        configurationFile = argv[1];
     
     try
     {
@@ -44,12 +49,57 @@ int main(int argc, char **argv)
         LOG_INFO("*** PROGRAM STARTET          ***");
         LOG_INFO("********************************");
 
-        cout << "TEST" << endl;
+        try
+        {
+            Configuration configuration;
+            if (configurationFile.length() > 0)
+                configuration.Load(configurationFile);
+
+            int retryCount = 0;
+
+            while (true)
+            {
+                auto startTime = chrono::system_clock::now();
+
+                try
+                {
+                    ElectricityMonitor electricityMonitor(configuration.GetDatabaseFilename());
+
+                    LOG_INFO("Start electricity monitor");
+                    electricityMonitor.Run();
+                }
+                catch(const std::exception& e)
+                {
+                    LOG_ERROR(e);
+                }
+
+                auto endTime = chrono::system_clock::now();
+                int elapsedTimeMinutes = chrono::duration_cast<chrono::minutes>(endTime - startTime).count();
+                
+                if (elapsedTimeMinutes < 10)
+                {
+                    retryCount++;
+                    if (retryCount > 3)
+                        break;
+                }
+                else
+                {
+                    retryCount = 0;
+                }
+
+                this_thread::sleep_for(chrono::seconds(30));
+            }
+        }
+        catch(const exception & e)
+        {
+            LOG_ERROR(e);
+        }
+        
     }
-    catch(const exception& e)
+    catch(const exception & e)
     {
         cerr << e.what() << endl;
     }
-    
+
     return 0;
 }

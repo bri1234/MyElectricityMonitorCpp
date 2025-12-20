@@ -33,25 +33,30 @@ using namespace std;
 
 namespace UnixUtils
 {
-
-    std::string CreateUnixLogFilename(const std::string & applicationName)
+    std::string GetHomeDirectory()
     {
-        string baseDir;
+        string homeDir;
 
         const char *varHome = getenv("HOME");
         
         if (varHome)
         {
-            baseDir = varHome;
+            homeDir = varHome;
         }
         else
         {
             auto pw = getpwuid(getuid());
             if (pw)
-                baseDir = pw->pw_dir;
+                homeDir = pw->pw_dir;
         }
+
+        return homeDir;
+    }
+
+    std::string CreateUnixLogFilename(const std::string & applicationName)
+    {
         
-        filesystem::path fullPath = baseDir;
+        filesystem::path fullPath = GetHomeDirectory();
         fullPath /= applicationName + ".log";
 
         return fullPath;

@@ -26,6 +26,7 @@ IN THE SOFTWARE.
 #include <stdexcept>
 #include <chrono>
 #include <format>
+#include <filesystem>
 
 #include "Logger.h"
 
@@ -112,7 +113,8 @@ void Logger::LogError(const std::string & fileName, int lineNumber, const std::e
 void Logger::Log(std::ostream & os, const std::string & messageType, const std::string & fileName, int lineNumber, const std::string & message)
 {
     LogCurrentTime(os);
-    os << " " << messageType << ": " << message << "(Line: " << lineNumber << " File: " << fileName << ")" << endl;
+    os << " [" << filesystem::path(fileName).filename() << " line " << lineNumber << "] ";
+    os << messageType << ": " << message << endl;
 }
 
 void Logger::LogCurrentTime(std::ostream & os)

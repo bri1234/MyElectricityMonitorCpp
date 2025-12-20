@@ -1,5 +1,3 @@
-#pragma once
-
 /*
 Copyright (C) 2025  Torsten Brischalle
 email: torsten@brischalle.de
@@ -24,16 +22,23 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 */
 
-#include <string>
+#include "Configuration.h"
 
-namespace UnixUtils
+#include "UnixUtils.h"
+
+#include <filesystem>
+
+using namespace UnixUtils;
+using namespace std;
+
+Configuration::Configuration()
 {
-    /// @brief Returns the home directory.
-    /// @return The home directory.
-    std::string GetHomeDirectory();
+    _databaseFilename = filesystem::path(GetHomeDirectory()) / "electricity_monitor_readings.db";
+}
 
-    /// @brief Creates a log filename for linux/unix systems.
-    /// @return The log filename.
-    std::string CreateUnixLogFilename(const std::string & applicationName);
+void Configuration::Load(const std::string & configurationFilename)
+{
+    (void)configurationFilename;
 
 }
+
