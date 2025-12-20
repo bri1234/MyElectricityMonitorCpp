@@ -26,7 +26,6 @@ IN THE SOFTWARE.
 #include <stdexcept>
 #include <chrono>
 #include <format>
-#include <filesystem>
 
 #include "Logger.h"
 
@@ -121,10 +120,3 @@ void Logger::LogCurrentTime(std::ostream & os)
     os << format("{:%Y-%m-%d %H:%M:%S}", chrono::system_clock::now());
 }
 
-std::string Logger::CreateLinuxLogFilename(const std::string & applicationName)
-{
-    filesystem::path fullPath = "/var/log";
-    fullPath /= applicationName + ".log";
-
-    return fullPath;
-}

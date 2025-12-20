@@ -1,3 +1,5 @@
+#pragma once
+
 /*
 Copyright (C) 2025  Torsten Brischalle
 email: torsten@brischalle.de
@@ -22,34 +24,13 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 */
 
-#include <iostream>
+#include <string>
 
-#include "Logger.h"
-#include "Database.h"
-#include "UnixUtils.h"
-
-using namespace std;
-
-int main(int argc, char **argv)
+namespace UnixUtils
 {
-    (void)argc;
-    (void)argv;
-    
-    try
-    {
-        string logFile = UnixUtils::CreateUnixLogFilename("MyElectricityMonitor");
-        Logger::Instance().OpenLogFile(logFile);
 
-        LOG_INFO("********************************");
-        LOG_INFO("*** PROGRAM STARTET          ***");
-        LOG_INFO("********************************");
+    /// @brief Creates a log filename for linux/unix systems.
+    /// @return The log filename.
+    std::string CreateUnixLogFilename(const std::string & applicationName);
 
-        cout << "TEST" << endl;
-    }
-    catch(const exception& e)
-    {
-        cerr << e.what() << endl;
-    }
-    
-    return 0;
 }

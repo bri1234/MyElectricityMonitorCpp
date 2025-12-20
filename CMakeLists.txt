@@ -14,15 +14,15 @@ target_sources(MyElectricityMonitor
         Logger.cpp
         Database.cpp
         Utils.cpp
+        UnixUtils.cpp
         main.cpp
 )
 
 target_compile_options(MyElectricityMonitor
     PRIVATE
-        -Wall
-        -Wextra
-        -Wpedantic
-        -Werror)
+        -g -O0
+        -fdiagnostics-color=always
+        -Wall -Wextra -Wpedantic -Werror)
 
 target_link_libraries(MyElectricityMonitor
     PRIVATE

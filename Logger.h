@@ -66,10 +66,6 @@ public:
     /// @param exc The error message.
     void LogError(const std::string & fileName, int lineNumber, const std::exception & exc);
 
-    /// @brief Creates a log filename for linux/unix systems.
-    /// @return The log filename.
-    static std::string CreateLinuxLogFilename(const std::string & applicationName);
-
 private:
     static ptr_type _instance;
 

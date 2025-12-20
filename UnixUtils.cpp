@@ -22,34 +22,40 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 */
 
-#include <iostream>
-
-#include "Logger.h"
-#include "Database.h"
 #include "UnixUtils.h"
+
+#include <stdlib.h>
+#include <unistd.h>
+#include <pwd.h>
+#include <filesystem>
 
 using namespace std;
 
-int main(int argc, char **argv)
+namespace UnixUtils
 {
-    (void)argc;
-    (void)argv;
-    
-    try
-    {
-        string logFile = UnixUtils::CreateUnixLogFilename("MyElectricityMonitor");
-        Logger::Instance().OpenLogFile(logFile);
 
-        LOG_INFO("********************************");
-        LOG_INFO("*** PROGRAM STARTET          ***");
-        LOG_INFO("********************************");
-
-        cout << "TEST" << endl;
-    }
-    catch(const exception& e)
+    std::string CreateUnixLogFilename(const std::string & applicationName)
     {
-        cerr << e.what() << endl;
+        string baseDir;
+
+        const char *varHome = getenv("HOME");
+        
+        if (varHome)
+        {
+            baseDir = varHome;
+        }
+        else
+        {
+            auto pw = getpwuid(getuid());
+            if (pw)
+                baseDir = pw->pw_dir;
+        }
+        
+        filesystem::path fullPath = baseDir;
+        fullPath /= applicationName + ".log";
+
+        return fullPath;
     }
-    
-    return 0;
+
 }
+
