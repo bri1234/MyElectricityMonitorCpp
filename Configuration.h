@@ -54,9 +54,15 @@ public:
     /// @return The number of channels of the inverter.
     int GetInverterNumberOfChannels() const { return _inverterNumberOfChannels; }
 
+    /// @brief Returns the electricity meter serial port.
+    /// @return The electricity meter serial port.
+    const std::string & GetElectricityMeterSerialPort() const { return _electricityMeterSerialPort; }
+
 private:
     std::string _inverterSerialNumber;
     int _inverterNumberOfChannels;
+
+    std::string _electricityMeterSerialPort;
 
     std::string _databaseFilepath;
 

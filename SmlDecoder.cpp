@@ -64,9 +64,9 @@ static const uint16_t CRC16_X25_TABLE[] = {
     0xF78F, 0xE606, 0xD49D, 0xC514, 0xB1AB, 0xA022,	0x92B9, 0x8330,
     0x7BC7, 0x6A4E, 0x58D5, 0x495C,	0x3DE3, 0x2C6A, 0x1EF1, 0x0F78 };
 
-static const SmlData::byte_array_type ESCAPE_SEQUENCE { 0x1B, 0x1B, 0x1B, 0x1B };
+static const SmlData::byte_array_type ESCAPE_SEQUENCE = { 0x1B, 0x1B, 0x1B, 0x1B };
 
-static const SmlData::byte_array_type SML_START { 0x01, 0x01, 0x01, 0x01 };
+static const SmlData::byte_array_type SML_START = { 0x01, 0x01, 0x01, 0x01 };
 
 /// @brief Calculates the CRC16 checksum for Smart Message Language of a byte array.
 /// @param data The byte array on which the ckecksum is to be calculated.

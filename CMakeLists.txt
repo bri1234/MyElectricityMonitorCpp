@@ -19,6 +19,8 @@ target_sources(MyElectricityMonitor
         Configuration.cpp
         Json.cpp
         SmlDecoder.cpp
+        EbzDd3.cpp
+        HoymilesHmDtu.cpp
         main.cpp
 )
 

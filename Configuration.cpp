@@ -38,6 +38,7 @@ using namespace std;
 Configuration::Configuration()
 : _inverterSerialNumber("00000000")
 , _inverterNumberOfChannels(2)
+, _electricityMeterSerialPort("/dev/ttyAMA0")
 , _databaseFilepath("electricity_monitor_readings.db")
 , _dataAcquisitionPeriod(30.0)
 {
@@ -57,6 +58,8 @@ void Configuration::Load(const std::string & configurationFilename)
     _databaseFilepath = GetStringValue(json, "Database", "Filepath", _databaseFilepath);
     _dataAcquisitionPeriod = GetDoubleValue(json, "Database", "DataAcquisitionPeriod", _dataAcquisitionPeriod);
 
+    _electricityMeterSerialPort = GetStringValue(json, "ElectricityMeter", "SerialPort", _electricityMeterSerialPort);
+    
     LOG_INFO(std::string("Loaded configuration from: ") + configurationFilename);
 }
 
