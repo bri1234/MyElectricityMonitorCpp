@@ -27,6 +27,7 @@ IN THE SOFTWARE.
 #include <vector>
 #include <string>
 #include <sstream>
+
 namespace Utils
 {
     /// @brief Appends the contents of one vector to another.
