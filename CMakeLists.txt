@@ -18,6 +18,7 @@ target_sources(MyElectricityMonitor
         ElectricityMonitor.cpp
         Configuration.cpp
         Json.cpp
+        SmlDecoder.cpp
         main.cpp
 )
 
