@@ -38,8 +38,15 @@ target_link_libraries(MyElectricityMonitor
         json-c)
 
 find_library(PIGPIO_LIBRARY NAMES pigpio PATHS /usr/local/lib /usr/lib)
-message(PIGPIO_LIBRARY="${PIGPIO_LIBRARY}")
+# message(PIGPIO_LIBRARY="${PIGPIO_LIBRARY}")
 
-target_link_libraries(MyElectricityMonitor
-    PRIVATE
-        pigpio)
+if (${PIGPIO_LIBRARY} MATCHES "NOTFOUND")
+    message("pigpio library not found. GPIO functionality will be disabled.")
+else()
+    message("pigpio library found. GPIO functionality will be enabled.")
+
+    target_link_libraries(MyElectricityMonitor
+        PRIVATE
+            pigpio)
+
+endif()
