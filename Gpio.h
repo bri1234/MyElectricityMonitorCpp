@@ -1,3 +1,5 @@
+#pragma once
+
 /*
 Copyright (C) 2025  Torsten Brischalle
 email: torsten@brischalle.de
@@ -22,41 +24,20 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 */
 
-#include "EbzDd3.h"
+#if __has_include(<pigpio.h>)
+#pragma message ("Including pigpio.h for GPIO support")
 
-#include "Logger.h"
+#else
+#pragma message ("!!! pigpio.h is missing, using demomode for GPIO !!!")
 
-using namespace std;
+#endif
 
-EbzDd3::EbzDd3(const std::string & serialPortName, int gpioSwitch)
-: _serialPortName(serialPortName)
-, _gpioSwitch(gpioSwitch)
+class Gpio
 {
+public:
 
-}
-
-EbzDd3::~EbzDd3()
-{   
-    try
-    {
-        Close();
-    }
-    catch (const exception & e)
-    {
-        LOG_ERROR(e);
-    }
-}
-
-void EbzDd3::Open()
-{
-    Close();
-
-    _serialPort.OpenPort(_serialPortName);
-    _serialPort.ConfigurePort(9600, SerialPort::P_NONE, 8, 1, false, false, 0.1);
+private:
     
-}
+};  
 
-void EbzDd3::Close()
-{
-    _serialPort.ClosePort();
-}
+

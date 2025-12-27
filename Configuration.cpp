@@ -90,7 +90,7 @@ double Configuration::GetDoubleValue(const Json & json, const std::string & topi
     {
         return GetDoubleValue(json, topic, key);
     }
-    catch(const std::exception& e)
+    catch(const exception& e)
     {
         return defaultValue;
     }
@@ -120,7 +120,7 @@ int Configuration::GetIntValue(const Json & json, const std::string & topic, con
     {
         return GetIntValue(json, topic, key);
     }
-    catch(const std::exception& e)
+    catch(const exception& e)
     {
         return defaultValue;
     }
@@ -150,7 +150,7 @@ std::string Configuration::GetStringValue(const Json & json, const std::string &
     {
         return GetStringValue(json, topic, key);
     }
-    catch(const std::exception& e)
+    catch(const exception& e)
     {
         return defaultValue;
     }

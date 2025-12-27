@@ -69,7 +69,7 @@ int main(int argc, char **argv)
                     LOG_INFO("Start electricity monitor");
                     electricityMonitor.Run(configuration);
                 }
-                catch(const std::exception& e)
+                catch(const exception& e)
                 {
                     LOG_ERROR(e);
                 }

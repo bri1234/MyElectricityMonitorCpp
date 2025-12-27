@@ -22,41 +22,4 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 */
 
-#include "EbzDd3.h"
-
-#include "Logger.h"
-
-using namespace std;
-
-EbzDd3::EbzDd3(const std::string & serialPortName, int gpioSwitch)
-: _serialPortName(serialPortName)
-, _gpioSwitch(gpioSwitch)
-{
-
-}
-
-EbzDd3::~EbzDd3()
-{   
-    try
-    {
-        Close();
-    }
-    catch (const exception & e)
-    {
-        LOG_ERROR(e);
-    }
-}
-
-void EbzDd3::Open()
-{
-    Close();
-
-    _serialPort.OpenPort(_serialPortName);
-    _serialPort.ConfigurePort(9600, SerialPort::P_NONE, 8, 1, false, false, 0.1);
-    
-}
-
-void EbzDd3::Close()
-{
-    _serialPort.ClosePort();
-}
+#include "Gpio.h"

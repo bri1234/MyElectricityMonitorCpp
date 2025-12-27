@@ -191,11 +191,17 @@ void SerialPort::WriteData(const void * data, size_t length) const
 {
     AssertPortIsOpen();
 
-    size_t bytesWritten = write(_fileDescriptor, data, length);
-    if (bytesWritten != length)
+    auto bytesWritten = write(_fileDescriptor, data, length);
+    if (bytesWritten < 0)
     {
-        throw runtime_error(format("SerialPort: can not write data to port {}: error {} {} ({} of {} bytes written)",
-            _serialPortName, errno, strerror(errno), bytesWritten, length));
+        throw runtime_error(format("SerialPort: can not write data to port {}: error {} {}",
+            _serialPortName, errno, strerror(errno)));
+    }
+
+    if ((size_t)bytesWritten != length)
+    {
+        throw runtime_error(format("SerialPort: can not write all data to port {}: {} of {} bytes written",
+            _serialPortName, bytesWritten, length));
     }
 }
 
@@ -227,7 +233,7 @@ size_t SerialPort::ReadDataBlocking(void * data, size_t length) const
 
     while (totalBytesRead < length)
     {
-        ssize_t bytesRead = read(_fileDescriptor, dataPtr + totalBytesRead, length - totalBytesRead);
+        auto bytesRead = read(_fileDescriptor, dataPtr + totalBytesRead, length - totalBytesRead);
         if (bytesRead < 0)
         {
             throw runtime_error(format("SerialPort: can not read data from port {}: error {} {} ({} of {} bytes read)",
@@ -239,7 +245,7 @@ size_t SerialPort::ReadDataBlocking(void * data, size_t length) const
             break;
         }
 
-        totalBytesRead += static_cast<size_t>(bytesRead);
+        totalBytesRead += bytesRead;
     }
 
     if (totalBytesRead < length)
@@ -255,7 +261,7 @@ size_t SerialPort::ReadDataNonBlocking(void * data, size_t length) const
 {
     AssertPortIsOpen();
 
-    size_t bytesRead = read(_fileDescriptor, data, length);
+    auto bytesRead = read(_fileDescriptor, data, length);
     if (bytesRead < 0)
     {
         throw runtime_error(format("SerialPort: can not read data from port {}: error {} {}",

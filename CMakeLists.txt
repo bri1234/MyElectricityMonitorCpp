@@ -21,6 +21,8 @@ target_sources(MyElectricityMonitor
         SmlDecoder.cpp
         EbzDd3.cpp
         HoymilesHmDtu.cpp
+        Gpio.cpp
+        SerialPort.cpp
         main.cpp
 )
 
@@ -34,3 +36,10 @@ target_link_libraries(MyElectricityMonitor
     PRIVATE
         sqlite3
         json-c)
+
+find_library(PIGPIO_LIBRARY NAMES pigpio PATHS /usr/local/lib /usr/lib)
+message(PIGPIO_LIBRARY="${PIGPIO_LIBRARY}")
+
+target_link_libraries(MyElectricityMonitor
+    PRIVATE
+        pigpio)

@@ -28,6 +28,8 @@ IN THE SOFTWARE.
 #include <string>
 #include <map>
 
+#include "SerialPort.h"
+
 class EbzDd3
 {
 public:
@@ -56,9 +58,19 @@ public:
         { "P L3", "W" }
     };
 
-    EbzDd3(const std::string & serialPort);
+    EbzDd3(const std::string & serialPortName, int gpioSwitch = 17);
+    ~EbzDd3();
+
+    /// @brief Opens the connection to the electricity meter.
+    void Open();
+
+    /// @brief Closes the connection to the electricity meter.
+    void Close();
 
 private:
-    std::string _serialPort;
+    std::string _serialPortName;
+    int _gpioSwitch;
+
+    SerialPort _serialPort;
 };
 
