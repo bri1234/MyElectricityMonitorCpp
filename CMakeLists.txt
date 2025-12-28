@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 3.25)
 
 project(MyElectricityMonitorProject
     VERSION 1.0
@@ -35,18 +35,6 @@ target_compile_options(MyElectricityMonitor
 target_link_libraries(MyElectricityMonitor
     PRIVATE
         sqlite3
-        json-c)
+        json-c
+        gpiod)
 
-find_library(PIGPIO_LIBRARY NAMES pigpio PATHS /usr/local/lib /usr/lib)
-# message(PIGPIO_LIBRARY="${PIGPIO_LIBRARY}")
-
-if (${PIGPIO_LIBRARY} MATCHES "NOTFOUND")
-    message("pigpio library not found. GPIO functionality will be disabled.")
-else()
-    message("pigpio library found. GPIO functionality will be enabled.")
-
-    target_link_libraries(MyElectricityMonitor
-        PRIVATE
-            pigpio)
-
-endif()

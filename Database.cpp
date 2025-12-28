@@ -65,7 +65,8 @@ void Database::OpenDatabase(const std::string fileName)
 {
     CloseDatabase();
 
-    CheckResult(sqlite3_open(fileName.c_str(), &_database));
+    int resultCode = sqlite3_open(fileName.c_str(), &_database);
+    CheckResult(resultCode, "Can not open database");
 }
 
 void Database::CloseDatabase()
@@ -73,22 +74,25 @@ void Database::CloseDatabase()
     if (!_database)
         return;
 
-    CheckResult(sqlite3_close(_database));
+    int resultCode = sqlite3_close(_database);
+    CheckResult(resultCode, "Can not close database");
+
     _database = nullptr;
 }
 
-void Database::CheckResult(int resultCode)
+void Database::CheckResult(int resultCode, const std::string & message)
 {
     if ((resultCode == SQLITE_OK) || (resultCode == SQLITE_ROW) || (resultCode == SQLITE_DONE))
         return;
     
-    throw DatabaseError(format("{} (error code {})", sqlite3_errstr(resultCode), resultCode));
+    throw DatabaseError(format("{}: {} (error code {})", message, sqlite3_errstr(resultCode), resultCode));
 }
 
 void Database::SqlExecute(const std::string & sql)
 {
     char * errMsg = nullptr;
-    CheckResult(sqlite3_exec(_database, sql.c_str(), nullptr, nullptr, &errMsg));
+    int resultCode = sqlite3_exec(_database, sql.c_str(), nullptr, nullptr, &errMsg);
+    CheckResult(resultCode, "Can not execute SQL command");
 
     if (errMsg)
     {

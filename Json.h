@@ -32,7 +32,10 @@ class Json
 {
 public:
 
+    /// @brief Constructor.
     Json();
+
+    /// @brief Destructor.
     ~Json();
 
     /// @brief Loads JSON data from a file.

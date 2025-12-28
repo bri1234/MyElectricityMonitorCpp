@@ -82,7 +82,8 @@ private:
 
     /// @brief Checks the result code and throws an error if it is an error code.
     /// @param resultCode The result code to be checked.
-    void CheckResult(int resultCode);
+    /// @param message The error message prefix.
+    void CheckResult(int resultCode, const std::string & message);
 
     /// @brief Executes an SQL command.
     /// @param sql The SQL command to be executed.

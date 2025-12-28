@@ -47,9 +47,13 @@ public:
         DT_LIST = 7
     };
 
+    /// @brief Constructor.
     SmlData();
 
+    /// @brief Returns the data type.
+    /// @return The data type.
     DataType GetDataType() const { return _dataType; }
+
     bool IsBool() const { return _dataType == DT_BOOL; }
     bool IsInteger() const { return _dataType == DT_INTEGER; }
     bool IsUnsigned() const { return _dataType == DT_UNSIGNED; }
