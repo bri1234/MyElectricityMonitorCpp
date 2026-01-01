@@ -45,7 +45,7 @@ void Json::LoadFromFile(const std::string & filename)
 
     _jsonRoot = json_object_from_file(filename.c_str());
     if (!_jsonRoot)
-        throw runtime_error("Failed to load JSON from file: " + filename);
+        throw Error("Failed to load JSON from file: " + filename);
 }
 
 void Json::FreeJsonRoot()
@@ -59,7 +59,7 @@ void Json::FreeJsonRoot()
 json_object * Json::GetRootObject() const
 {
     if (!_jsonRoot)
-        throw runtime_error("JSON root object is null.");
+        throw Error("JSON root object is null.");
         
     return _jsonRoot;
 }

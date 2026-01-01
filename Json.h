@@ -26,11 +26,20 @@ IN THE SOFTWARE.
 
 #include <json-c/json.h>
 #include <string>
+#include <stdexcept>
+#include <format>
 
 /// @brief A class for handling JSON data.
 class Json
 {
 public:
+
+    /// @brief JSON error.
+    class Error : public std::runtime_error
+    {
+    public:
+        Error(const std::string & errorMessage) : std::runtime_error(std::format("JSON error: {}", errorMessage)) { }
+    };
 
     /// @brief Constructor.
     Json();

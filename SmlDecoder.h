@@ -29,6 +29,8 @@ IN THE SOFTWARE.
 #include <memory>
 #include <cstdint>
 #include <ostream>
+#include <stdexcept>
+#include <format>
 
 /// @brief Represents the decoded SML data.
 class SmlData
@@ -45,6 +47,13 @@ public:
         DT_INTEGER = 5,
         DT_UNSIGNED = 6,
         DT_LIST = 7
+    };
+
+    /// @brief EbzDd3 error.
+    class Error : public std::runtime_error
+    {
+    public:
+        Error(const std::string & errorMessage) : std::runtime_error(std::format("SML data error: {}", errorMessage)) { }
     };
 
     /// @brief Constructor.

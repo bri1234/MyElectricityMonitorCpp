@@ -27,12 +27,27 @@ IN THE SOFTWARE.
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <stdexcept>
 
 class SerialPort
 {
 public:
     /// @brief Parity options for serial port configuration
     enum Parity { P_NONE, P_EVEN, P_ODD };
+
+    /// @brief Serial port error.
+    class Error : public std::runtime_error
+    {
+    public:
+        Error(const std::string & errorMessage) : std::runtime_error(std::format("Serial port error: {}", errorMessage)) { }
+    };
+
+    /// @brief Database error.
+    class Timeout : public Error
+    {
+    public:
+        Timeout(const std::string & errorMessage) : Error(std::format("Timeout: {}", errorMessage)) { }
+    };
 
     /// @brief Constructor
     SerialPort();
@@ -95,6 +110,13 @@ public:
     /// @param length The number of bytes to read.
     /// @return The number of bytes actually read. (May be less than length or 0 if no data is available.)
     size_t ReadDataNonBlocking(void * data, size_t length) const;
+    
+    /// @brief Queries the number of bytes available in the receive buffer.
+    /// @return The number of bytes available in the receive buffer.
+    int GetNumberOfBytesAvailable() const;
+    
+    /// @brief Discards all data that is in the input buffer.
+    void ClearInputBuffer() const;
 
 private:
     int _fileDescriptor = -1;

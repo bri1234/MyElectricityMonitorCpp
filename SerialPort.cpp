@@ -32,6 +32,7 @@ IN THE SOFTWARE.
 #include <termios.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/ioctl.h>
 
 using namespace std;
 
@@ -50,7 +51,7 @@ void SerialPort::OpenPort(const std::string & serialPortName)
 
     _fileDescriptor = open(serialPortName.c_str(), O_RDWR);
     if (_fileDescriptor < 0)
-        throw runtime_error(format("SerialPort: can not open port {}: error {} {}", serialPortName, errno, strerror(errno)));
+        throw Error(format("can not open port {}: error {} {}", serialPortName, errno, strerror(errno)));
 
     _serialPortName = serialPortName;
 }
@@ -73,7 +74,7 @@ void SerialPort::ConfigurePort(int baudrate, Parity parity, int dataBits, int st
     struct termios tty;
 
     if (tcgetattr(_fileDescriptor, &tty) != 0)
-        throw runtime_error(format("SerialPort: can not get configuration for port {}: error {} {}", _serialPortName, errno, strerror(errno)));
+        throw Error(format("can not get configuration for port {}: error {} {}", _serialPortName, errno, strerror(errno)));
     
     switch (baudrate)
     {
@@ -98,7 +99,7 @@ void SerialPort::ConfigurePort(int baudrate, Parity parity, int dataBits, int st
             cfsetospeed(&tty, B115200);
             break;
         default:
-            throw runtime_error(format("SerialPort: unsupported baudrate {} for port {}", baudrate, _serialPortName));
+            throw Error(format("unsupported baudrate {} for port {}", baudrate, _serialPortName));
     }
 
     switch (parity)
@@ -115,7 +116,7 @@ void SerialPort::ConfigurePort(int baudrate, Parity parity, int dataBits, int st
             tty.c_cflag |= PARODD;
             break;
         default:
-            throw runtime_error(format("SerialPort: unsupported parity {} for port {}", (int)parity, _serialPortName));
+            throw Error(format("unsupported parity {} for port {}", (int)parity, _serialPortName));
     }
 
     tty.c_cflag &= ~CSIZE;
@@ -128,7 +129,7 @@ void SerialPort::ConfigurePort(int baudrate, Parity parity, int dataBits, int st
             tty.c_cflag |= CS8;
             break;
         default:
-            throw runtime_error(format("SerialPort: unsupported data bits {} for port {}", dataBits, _serialPortName));
+            throw Error(format("unsupported data bits {} for port {}", dataBits, _serialPortName));
     }
 
     switch (stopBits)
@@ -140,7 +141,7 @@ void SerialPort::ConfigurePort(int baudrate, Parity parity, int dataBits, int st
             tty.c_cflag |= CSTOPB;
             break;
         default:
-            throw runtime_error(format("SerialPort: unsupported stop bits {} for port {}", stopBits, _serialPortName));
+            throw Error(format("unsupported stop bits {} for port {}", stopBits, _serialPortName));
     }
 
     if (enableHardwareFlowControl)
@@ -172,19 +173,19 @@ void SerialPort::ConfigurePort(int baudrate, Parity parity, int dataBits, int st
     tty.c_oflag &= ~(OPOST | ONLCR);
     
     if (readTimeoutSeconds < 0.0)
-        throw runtime_error(format("SerialPort: invalid read timeout {} for port {}", readTimeoutSeconds, _serialPortName));
+        throw Error(format("invalid read timeout {} for port {}", readTimeoutSeconds, _serialPortName));
 
     tty.c_cc[VTIME] = (int)(readTimeoutSeconds * 10.0); // in tenths of a second
     tty.c_cc[VMIN] = 0;
 
     if (tcsetattr(_fileDescriptor, TCSANOW, &tty) != 0)
-        throw runtime_error(format("SerialPort: can not change configuration for port {}: error {} {}", _serialPortName, errno, strerror(errno)));
+        throw Error(format("can not change configuration for port {}: error {} {}", _serialPortName, errno, strerror(errno)));
 }
 
 void SerialPort::AssertPortIsOpen() const
 {
     if (_fileDescriptor < 0)
-        throw runtime_error("SerialPort: port is not open!");
+        throw Error("port is not open!");
 }
 
 void SerialPort::WriteData(const void * data, size_t length) const
@@ -194,13 +195,13 @@ void SerialPort::WriteData(const void * data, size_t length) const
     auto bytesWritten = write(_fileDescriptor, data, length);
     if (bytesWritten < 0)
     {
-        throw runtime_error(format("SerialPort: can not write data to port {}: error {} {}",
+        throw Error(format("can not write data to port {}: error {} {}",
             _serialPortName, errno, strerror(errno)));
     }
 
     if ((size_t)bytesWritten != length)
     {
-        throw runtime_error(format("SerialPort: can not write all data to port {}: {} of {} bytes written",
+        throw Error(format("can not write all data to port {}: {} of {} bytes written",
             _serialPortName, bytesWritten, length));
     }
 }
@@ -236,7 +237,7 @@ size_t SerialPort::ReadDataBlocking(void * data, size_t length) const
         auto bytesRead = read(_fileDescriptor, dataPtr + totalBytesRead, length - totalBytesRead);
         if (bytesRead < 0)
         {
-            throw runtime_error(format("SerialPort: can not read data from port {}: error {} {} ({} of {} bytes read)",
+            throw Error(format("can not read data from port {}: error {} {} ({} of {} bytes read)",
                 _serialPortName, errno, strerror(errno), totalBytesRead, length));
         }
         else if (bytesRead == 0)
@@ -250,7 +251,7 @@ size_t SerialPort::ReadDataBlocking(void * data, size_t length) const
 
     if (totalBytesRead < length)
     {
-        throw runtime_error(format("SerialPort: timeout reading data from port {}: only {} of {} bytes read",
+        throw Timeout(format("reading data from port {}: only {} of {} bytes read",
             _serialPortName, totalBytesRead, length));
     }
 
@@ -264,9 +265,36 @@ size_t SerialPort::ReadDataNonBlocking(void * data, size_t length) const
     auto bytesRead = read(_fileDescriptor, data, length);
     if (bytesRead < 0)
     {
-        throw runtime_error(format("SerialPort: can not read data from port {}: error {} {}",
+        throw Error(format("can not read data from port {}: error {} {}",
             _serialPortName, errno, strerror(errno)));
     }
 
     return bytesRead;
+}
+
+int SerialPort::GetNumberOfBytesAvailable() const
+{
+    AssertPortIsOpen();
+
+    int numberOfBytesAvailable = 0;
+    int result = ioctl(_fileDescriptor, FIONREAD, &numberOfBytesAvailable);
+    if (result == -1)
+    {
+        throw Error(format("can not query number of bytes available of port {}: error {} {}",
+            _serialPortName, errno, strerror(errno)));
+    }
+
+    return numberOfBytesAvailable;
+}
+
+void SerialPort::ClearInputBuffer() const
+{
+    AssertPortIsOpen();
+
+    int result = tcflush(_fileDescriptor, TCIFLUSH);
+    if (result == -1)
+    {
+        throw Error(format("can not clear input buffer of port {}: error {} {}",
+            _serialPortName, errno, strerror(errno)));
+    }
 }

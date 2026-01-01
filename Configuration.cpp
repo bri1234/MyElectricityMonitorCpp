@@ -47,7 +47,7 @@ Configuration::Configuration()
 void Configuration::Load(const std::string & configurationFilename)
 {
     if (!filesystem::exists(configurationFilename))
-        throw runtime_error(format("Configuration file not found: {}", configurationFilename));
+        throw Error(format("Configuration file not found: {}", configurationFilename));
 
     Json json;
     json.LoadFromFile(configurationFilename);
@@ -70,10 +70,10 @@ double Configuration::GetDoubleValue(const Json & json, const std::string & topi
     auto root = json.GetRootObject();
 
     if (!json_object_object_get_ex(root, topic.c_str(), &objTopic))
-        throw runtime_error("Topic not found in JSON: " + topic);
+        throw Error("Topic not found in JSON: " + topic);
 
     if (!json_object_object_get_ex(objTopic, key.c_str(), &objKey))
-        throw runtime_error("Key not found in JSON topic '" + topic + "': " + key);
+        throw Error("Key not found in JSON topic '" + topic + "': " + key);
 
     if (json_object_get_type(objKey) == json_type_int)
         return json_object_get_int(objKey);
@@ -81,7 +81,7 @@ double Configuration::GetDoubleValue(const Json & json, const std::string & topi
     if (json_object_get_type(objKey) == json_type_double)
         return json_object_get_double(objKey);
 
-    throw runtime_error("Key is not a number in JSON topic '" + topic + "': " + key);
+    throw Error("Key is not a number in JSON topic '" + topic + "': " + key);
 }
 
 double Configuration::GetDoubleValue(const Json & json, const std::string & topic, const std::string & key, double defaultValue)
@@ -103,15 +103,15 @@ int Configuration::GetIntValue(const Json & json, const std::string & topic, con
     auto root = json.GetRootObject();
 
     if (!json_object_object_get_ex(root, topic.c_str(), &objTopic))
-        throw runtime_error("Topic not found in JSON: " + topic);
+        throw Error("Topic not found in JSON: " + topic);
 
     if (!json_object_object_get_ex(objTopic, key.c_str(), &objKey))
-        throw runtime_error("Key not found in JSON topic '" + topic + "': " + key);
+        throw Error("Key not found in JSON topic '" + topic + "': " + key);
 
     if (json_object_get_type(objKey) == json_type_int)
         return json_object_get_int(objKey);
 
-    throw runtime_error("Key is not a number in JSON topic '" + topic + "': " + key);
+    throw Error("Key is not a number in JSON topic '" + topic + "': " + key);
 }
 
 int Configuration::GetIntValue(const Json & json, const std::string & topic, const std::string & key, int defaultValue)
@@ -133,15 +133,15 @@ std::string Configuration::GetStringValue(const Json & json, const std::string &
     auto root = json.GetRootObject();
 
     if (!json_object_object_get_ex(root, topic.c_str(), &objTopic))
-        throw runtime_error("Topic not found in JSON: " + topic);
+        throw Error("Topic not found in JSON: " + topic);
 
     if (!json_object_object_get_ex(objTopic, key.c_str(), &objKey))
-        throw runtime_error("Key not found in JSON topic '" + topic + "': " + key);
+        throw Error("Key not found in JSON topic '" + topic + "': " + key);
 
     if (json_object_get_type(objKey) == json_type_string)
         return string(json_object_get_string(objKey));
 
-    throw runtime_error("Key is not a string in JSON topic '" + topic + "': " + key);
+    throw Error("Key is not a string in JSON topic '" + topic + "': " + key);
 }
 
 std::string Configuration::GetStringValue(const Json & json, const std::string & topic, const std::string & key, const std::string & defaultValue)

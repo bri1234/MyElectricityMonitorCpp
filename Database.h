@@ -29,6 +29,7 @@ IN THE SOFTWARE.
 #include <stdexcept>
 #include <vector>
 #include <map>
+#include <format>
 
 /// @brief Class to store the readings in a SQLite database.
 class Database
@@ -38,10 +39,10 @@ public:
     typedef std::map <std::string, double> readings_type;
 
     /// @brief Database error.
-    class DatabaseError : public std::runtime_error
+    class Error : public std::runtime_error
     {
     public:
-        DatabaseError(const std::string & errorMessage) : std::runtime_error(errorMessage) { }
+        Error(const std::string & errorMessage) : std::runtime_error(std::format("Database error: {}", errorMessage)) { }
     };
 
     /// @brief Creates a new instance of the database object.

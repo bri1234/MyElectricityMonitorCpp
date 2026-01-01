@@ -31,6 +31,13 @@ class Configuration
 {
 public:
 
+    /// @brief Configuration error.
+    class Error : public std::runtime_error
+    {
+    public:
+        Error(const std::string & errorMessage) : std::runtime_error(std::format("Configuration error: {}", errorMessage)) { }
+    };
+
     /// @brief Constructor.
     Configuration();
 

@@ -28,6 +28,7 @@ target_sources(MyElectricityMonitor
 
 target_compile_options(MyElectricityMonitor
     PRIVATE
+        # -O2
         -g -O0
         -fdiagnostics-color=always
         -Wall -Wextra -Wpedantic -Werror)

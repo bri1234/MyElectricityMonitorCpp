@@ -27,9 +27,12 @@ IN THE SOFTWARE.
 #include <vector>
 #include <string>
 #include <map>
+#include <cstdint>
 
 #include "SerialPort.h"
+#include "Gpio.h"
 
+/// @brief Class to interface with two EBZ DD3 electricity meter via a serial port and GPIO.
 class EbzDd3
 {
 public:
@@ -58,6 +61,13 @@ public:
         { "P L3", "W" }
     };
 
+    /// @brief EbzDd3 error.
+    class Error : public std::runtime_error
+    {
+    public:
+        Error(const std::string & errorMessage) : std::runtime_error(std::format("EbzDd3 error: {}", errorMessage)) { }
+    };
+
     /// @brief Constructor
     /// @param serialPortName The name of the serial port (e.g. "/dev/ttyS0" on Linux).
     /// @param gpioSwitch The GPIO pin number used to switch between electricity meter 1 and 2 (default: 17).
@@ -70,10 +80,28 @@ public:
     /// @brief Closes the connection to the electricity meter.
     void Close();
 
+    /// @brief Selects the channel (= the electricity meter) to read from.
+    /// @param channelNum The channel (= the electricity meter) 0 or 1.
+    void SelectChannel(int channelNum);
+
 private:
     std::string _serialPortName;
     int _gpioSwitch;
 
     SerialPort _serialPort;
+    Gpio _gpio;
+
+    /// @brief Reads a data block from the serial port with specified timeouts.
+    /// @param serialPort The serial port to read from.
+    /// @param data The data buffer to store the read data.
+    /// @param timeoutBetweenBytes The timeout between receiving two bytes in seconds.
+    /// @param timeoutFirstByte The timeout for receiving the first byte in seconds.
+    static void ReadBlock(const SerialPort & serialPort, std::vector <uint8_t> & data, double timeoutBetweenBytes, double timeoutFirstByte);
+
+    /// @brief Receives the data of one full info message.
+    /// @param data The data buffer where the received message data is stored.
+    /// @param channelNum The channel (= electricity meter 0 or 1).
+    void ReceiveInfoData(std::vector <uint8_t> & data, int channelNum);
+
 };
 

@@ -69,7 +69,7 @@ void Logger::OpenLogFile(const std::string & fileName)
     ostream_ptr_type logFile = make_shared<ofstream>(fileName);
 
     if (!(*logFile))
-        throw runtime_error("Logger: can not open file: " + fileName);
+        throw Error("Logger: can not open file: " + fileName);
 
     _logFile = logFile;
 }

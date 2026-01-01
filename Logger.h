@@ -26,6 +26,7 @@ IN THE SOFTWARE.
 
 #include <fstream>
 #include <memory>
+#include <stdexcept>
 
 /// @brief A class for logging.
 class Logger
@@ -34,6 +35,13 @@ public:
     typedef std::shared_ptr <Logger> ptr_type;
     typedef std::shared_ptr <std::ofstream> ostream_ptr_type;
     
+    /// @brief Logger error.
+    class Error : public std::runtime_error
+    {
+    public:
+        Error(const std::string & errorMessage) : std::runtime_error(std::format("Logger error: {}", errorMessage)) { }
+    };
+
     /// @brief Destructor.
     ~Logger();
 

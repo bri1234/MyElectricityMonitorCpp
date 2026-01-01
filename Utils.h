@@ -27,6 +27,7 @@ IN THE SOFTWARE.
 #include <vector>
 #include <string>
 #include <sstream>
+#include <chrono>
 
 namespace Utils
 {
@@ -78,4 +79,5 @@ namespace Utils
     /// @param str The string to convert.
     /// @return The converted double.
     double StrToDouble(const std::string & str);
+
 }

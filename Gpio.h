@@ -28,6 +28,7 @@ IN THE SOFTWARE.
 
 #include <string>
 #include <vector>
+#include <stdexcept>
 
 class Gpio
 {
@@ -38,6 +39,13 @@ public:
     {
         GD_INPUT,
         GD_OUTPUT
+    };
+
+    /// @brief GPIO error.
+    class Error : public std::runtime_error
+    {
+    public:
+        Error(const std::string & errorMessage) : std::runtime_error(std::format("GPIO error: {}", errorMessage)) { }
     };
 
     /// @brief Constructor. Initializes the GPIO library.

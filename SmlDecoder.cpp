@@ -93,7 +93,7 @@ static uint16_t CalculateSmlCrc16(const SmlData::byte_array_type & data, int dat
 static uint64_t DecodeUnsignedBigEndian(const SmlData::byte_array_type & data, int position, int length)
 {
     if ((length < 1) || (length > 8))
-        throw runtime_error(format("DecodeUnsigned: length {} is out of range (1 .. 8).", length));
+        throw SmlData::Error(format("DecodeUnsigned: length {} is out of range (1 .. 8).", length));
 
     uint64_t value = 0;
 
@@ -114,7 +114,7 @@ static uint64_t DecodeUnsignedBigEndian(const SmlData::byte_array_type & data, i
 static int64_t DecodeIntegerBigEndian(const SmlData::byte_array_type & data, int position, int length)
 {
     if ((length < 1) || (length > 8))
-        throw runtime_error(format("DecodeInteger: length {} is out of range (1 .. 8).", length));
+        throw SmlData::Error(format("DecodeInteger: length {} is out of range (1 .. 8).", length));
 
     bool isNegative = (data[position] & 0x80) != 0;
     int64_t value = isNegative ? -1 : 0;
@@ -166,7 +166,7 @@ void SmlData::AssertIsDataType(DataType expectedDataType) const
 {
     if (_dataType != expectedDataType)
     {
-        throw std::runtime_error(format("SmlData: data type expexted {} but is {}.",
+        throw Error(format("SmlData: data type expexted {} but is {}.",
             DataTypeToString(expectedDataType), DataTypeToString(_dataType)));
     }
 }
@@ -297,7 +297,7 @@ SmlData SmlData::DecodeValue(const byte_array_type & data, int position,
     }
     else
     {
-        throw runtime_error(format("Unknown data type {} at position {}", (int)dataType, position));
+        throw Error(format("Unknown data type {} at position {}", (int)dataType, position));
     }
 
     return value;
@@ -307,20 +307,20 @@ SmlData::list_type DecodeSmlMessages(const SmlData::byte_array_type & data)
 {
     // check for escape sequence
     if (!equal(ESCAPE_SEQUENCE.begin(), ESCAPE_SEQUENCE.end(), data.begin()))
-        throw runtime_error("DecodeSmlMessages: missing escape sequence at position 0");
+        throw SmlData::Error("DecodeSmlMessages: missing escape sequence at position 0");
 
     // check version
     if (!equal(SML_START.begin(), SML_START.end(), data.begin() + 4))
-        throw runtime_error("DecodeSmlMessages: missing SML start sequence at position 4");
+        throw SmlData::Error("DecodeSmlMessages: missing SML start sequence at position 4");
 
     // check for second escape sequence
     size_t count = data.size();
 
     if (!equal(ESCAPE_SEQUENCE.begin(), ESCAPE_SEQUENCE.end(), data.begin() + count - 8))
-        throw runtime_error(format("DecodeSmlMessages: missing second escape sequence at position {}", count - 8));
+        throw SmlData::Error(format("DecodeSmlMessages: missing second escape sequence at position {}", count - 8));
 
     if (data[count - 4] != 0x1A)
-        throw runtime_error(format("DecodeSmlMessages: missing 0x1A at position {}", count - 4));
+        throw SmlData::Error(format("DecodeSmlMessages: missing 0x1A at position {}", count - 4));
 
     // get number of fill bytes
     int numberOfFillBytes = data[count - 3];
@@ -331,7 +331,7 @@ SmlData::list_type DecodeSmlMessages(const SmlData::byte_array_type & data)
     uint16_t checkSum2 = CalculateSmlCrc16(data, count - 2);
 
     if (checkSum1 != checkSum2)
-        throw runtime_error(format("DecodeSmlMessages: Checksum error: found {:04X} calculated {:04X}", checkSum1, checkSum2));
+        throw SmlData::Error(format("DecodeSmlMessages: Checksum error: found {:04X} calculated {:04X}", checkSum1, checkSum2));
     
     SmlData::list_type messageList;
     int position = 8;
@@ -342,7 +342,7 @@ SmlData::list_type DecodeSmlMessages(const SmlData::byte_array_type & data)
         SmlData message = SmlData::DecodeValue(data, position, position, endOfMsg);
 
         if (!endOfMsg)
-            throw runtime_error(format("DecodeSmlMessages: missing end of message at position {}", position));
+            throw SmlData::Error(format("DecodeSmlMessages: missing end of message at position {}", position));
 
         messageList.push_back(message);
     }

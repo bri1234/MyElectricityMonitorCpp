@@ -85,7 +85,7 @@ void Database::CheckResult(int resultCode, const std::string & message)
     if ((resultCode == SQLITE_OK) || (resultCode == SQLITE_ROW) || (resultCode == SQLITE_DONE))
         return;
     
-    throw DatabaseError(format("{}: {} (error code {})", message, sqlite3_errstr(resultCode), resultCode));
+    throw Error(format("{}: {} (error code {})", message, sqlite3_errstr(resultCode), resultCode));
 }
 
 void Database::SqlExecute(const std::string & sql)
@@ -98,7 +98,7 @@ void Database::SqlExecute(const std::string & sql)
     {
         string errorMessage(errMsg);
         sqlite3_free(errMsg);
-        throw DatabaseError(errorMessage);
+        throw Error(errorMessage);
     }
 }
 
@@ -133,7 +133,7 @@ void Database::CreateTablesIfNotExists()
 void Database::InsertReadingsElectricityMeter(int electricityMeterNum, const readings_type & readings)
 {
     if ((electricityMeterNum < 0) || (electricityMeterNum > 1))
-        throw DatabaseError(format("Invalid electricity meter number: {}", electricityMeterNum));
+        throw Error(format("Invalid electricity meter number: {}", electricityMeterNum));
     
     ostringstream os;
 
