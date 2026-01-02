@@ -37,5 +37,6 @@ target_link_libraries(MyElectricityMonitor
     PRIVATE
         sqlite3
         json-c
-        gpiod)
+        gpiod
+        rf24)
 

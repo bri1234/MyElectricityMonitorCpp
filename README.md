@@ -43,6 +43,46 @@ GPIO 17 is used to switch between two electricity meters.
 Connection from Raspberry PI pin 22 to nRF24L01+ IRQ pin 8 is not necessary!
 nRF24L01+ CE pin 3 can be connected to an other Raspberry PI GPIO pin.
 
+# Additional software libraries
+
+## Raspberry PI library SQLite
+
+Install library **libsqlite3**:
+
+```bash
+sudo apt install libsqlite3-dev
+```
+
+## Raspberry PI library GPIO
+
+Install library **libgpiod**:
+
+```bash
+sudo apt install libgpiod-dev
+```
+
+## Raspberry PI library json-c
+
+Install library **libjson-c**:
+
+```bash
+sudo apt install libjson-c-dev
+```
+
+## Raspberry PI library RF24
+
+Download and install library **RF24**:
+
+```bash
+git clone https://github.com/nRF24/RF24.git
+cd RF24
+mkdir build
+cd build
+cmake ..
+make
+sudo make install
+```
+
 # Software
 
 ## Rapsberry PI enable UART for electricity meters
@@ -66,28 +106,6 @@ sudo raspi-config
 "Interface Options" -> "SPI"
 
 "Would you like the SPI interface to be enabled?" -> "YES"
-
-## Raspberry PI Python GPIO module: gpiozero
-
-```bash
-sudo python3 -m pip install gpiozero
-```
-
-## Raspebrry PI Python module for nRF24L01+: pyrf24
-
-This Python code needs the pyrf24 module for communication. Install the module with the following line:
-
-```bash
-sudo python3 -m pip install pyrf24
-```
-
-(see https://github.com/nRF24/pyRF24)
-
-## Raspberry PI Python GPIO module: pyserial
-
-```bash
-sudo python3 -m pip install pyserial
-```
 
 ## Start the application automatically after boot: CRON job
 
