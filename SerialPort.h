@@ -28,6 +28,7 @@ IN THE SOFTWARE.
 #include <string>
 #include <cstdint>
 #include <stdexcept>
+#include <format>
 
 class SerialPort
 {

@@ -74,6 +74,7 @@ public:
     int64_t GetInteger() const { AssertIsDataType(DT_INTEGER); return _integer; }
     uint64_t GetUnsigned() const { AssertIsDataType(DT_UNSIGNED); return _unsigned; }
     const list_type & GetList() const { AssertIsDataType(DT_LIST); return _list; }
+    const SmlData & GetListItem(int index) const { AssertIsDataType(DT_LIST); return _list.at(index); }
 
     /// @brief Prints the SML data structure.
     /// @param os The output stream.

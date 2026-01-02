@@ -29,6 +29,7 @@ IN THE SOFTWARE.
 #include <string>
 #include <vector>
 #include <stdexcept>
+#include <format>
 
 class Gpio
 {

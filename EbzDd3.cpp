@@ -36,6 +36,15 @@ using namespace std;
 using std::chrono::steady_clock;
 using std::chrono::duration;
 
+constexpr static const string ID_PLUS_A     = string("\x01\x00\x01\x08\x00\xFF", 6);
+constexpr static const string ID_PLUS_A_T1  = string("\x01\x00\x01\x08\x01\xFF", 6);
+constexpr static const string ID_PLUS_A_T2  = string("\x01\x00\x01\x08\x02\xFF", 6);
+constexpr static const string ID_MINUS_A    = string("\x01\x00\x02\x08\x00\xFF", 6);
+constexpr static const string ID_POWER      = string("\x01\x00\x10\x07\x00\xFF", 6);
+constexpr static const string ID_POWER_L1   = string("\x01\x00\x24\x07\x00\xFF", 6);
+constexpr static const string ID_POWER_L2   = string("\x01\x00\x38\x07\x00\xFF", 6);
+constexpr static const string ID_POWER_L3   = string("\x01\x00\x4C\x07\x00\xFF", 6);
+
 EbzDd3::EbzDd3(const std::string & serialPortName, int gpioSwitch)
 : _serialPortName(serialPortName)
 , _gpioSwitch(gpioSwitch)
@@ -145,3 +154,129 @@ void EbzDd3::ReceiveInfoData(std::vector <uint8_t> & data, int channelNum)
     ReadBlock(_serialPort, data, 0.3, 1.0);
 }
 
+bool EbzDd3::ExtractInfoFromDataSet(const SmlData & dataSet, Readings & readings)
+{
+    const std::string & id = dataSet.GetListItem(0).GetString();
+    double value = dataSet.GetListItem(5).GetUnsigned();
+
+    // +A: Active energy, grid supplies to customer.
+    // -A: Active energy, customer supplies to grid
+
+    if (id == ID_PLUS_A)
+    {
+        // meter reading +A, tariff-free in kWh
+        readings.PlusA = value / 1E8;
+        return true;
+    }
+
+    if (id == ID_PLUS_A_T1)
+    {
+        // meter reading +A, tariff 1 in kWh
+        readings.PlusA_T1 = value / 1E8;
+        return true;
+    }
+
+    if (id == ID_PLUS_A_T2)
+    {
+        // meter reading +A, tariff 2 in kWh
+        readings.PlusA_T2 = value / 1E8;
+        return true;
+    }
+
+    if (id == ID_MINUS_A)
+    {
+        // meter reading -A, tariff-free in kWh
+        readings.MinusA = value / 1E8;
+        return true;
+    }
+
+    if (id == ID_POWER)
+    {
+        // Sum of instantaneous power in all phases in W
+        readings.Power = value / 1E2;
+        return true;
+    }
+
+    if (id == ID_POWER_L1)
+    {
+        // Instantaneous power phase L1 in W
+        readings.PowerL1 = value / 1E2;
+        return true;
+    }
+
+    if (id == ID_POWER_L2)
+    {
+        // Instantaneous power phase L2 in W
+        readings.PowerL2 = value / 1E2;
+        return true;
+    }
+
+    if (id == ID_POWER_L3)
+    {
+        // Instantaneous power phase L3 in W
+        readings.PowerL3 = value / 1E2;
+        return true;
+    }
+
+    return false;
+}
+
+void EbzDd3::ExtractInfoFromData(const std::vector<uint8_t> & data, Readings & readings)
+{
+    auto messageList = DecodeSmlMessages(data);
+
+    // get the useful data sets
+    const SmlData & message = messageList.at(1);
+    const SmlData & dataSetList = message.GetListItem(3).GetListItem(1).GetListItem(4);
+
+    for (const auto & dataSet : dataSetList.GetList())
+    {
+        ExtractInfoFromDataSet(dataSet, readings);
+    }
+}
+
+bool EbzDd3::ReceiveInfo(int channelNum, Readings & readings)
+{
+    readings.Clear();
+
+    try
+    {
+        vector <uint8_t> data;
+
+        ReceiveInfoData(data, channelNum);
+        if (data.size() == 0)
+            return false;
+        
+        ExtractInfoFromData(data, readings);
+        return true;
+    }
+    catch (const exception & exc)
+    {
+        LOG_ERROR(exc);
+        return false;
+    }
+}
+
+void EbzDd3::Readings::Clear()
+{
+    PlusA = InvalidValue;
+    PlusA_T1 = InvalidValue;
+    PlusA_T2 = InvalidValue;
+    MinusA = InvalidValue;
+    Power = InvalidValue;
+    PowerL1 = InvalidValue;
+    PowerL2 = InvalidValue;
+    PowerL3 = InvalidValue;
+}
+
+void EbzDd3::Readings::Print(std::ostream & os)
+{
+    os << "+A = " << PlusA << " " << UnitPlusA << endl;
+    os << "+A T1 = " << PlusA_T1 << " " << UnitPlusA_T1 << endl;
+    os << "+A T2 = " << PlusA_T2 << " " << UnitPlusA_T2 << endl;
+    os << "-A = " << MinusA << " " << UnitMinusA << endl;
+    os << "P = " << Power << " " << UnitPower << endl;
+    os << "P L1 = " << PowerL1 << " " << UnitPowerL1 << endl;
+    os << "P L2 = " << PowerL2 << " " << UnitPowerL2 << endl;
+    os << "P L3 = " << PowerL3 << " " << UnitPowerL3 << endl;
+}

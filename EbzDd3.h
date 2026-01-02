@@ -28,37 +28,61 @@ IN THE SOFTWARE.
 #include <string>
 #include <map>
 #include <cstdint>
+#include <format>
 
 #include "SerialPort.h"
 #include "Gpio.h"
+#include "SmlDecoder.h"
 
 /// @brief Class to interface with two EBZ DD3 electricity meter via a serial port and GPIO.
 class EbzDd3
 {
 public:
-    /*
-        Units for the meter readings:
 
-        "+A"      = meter reading +A, tariff-free in kWh
-        "+A T1"   = meter reading +A, tariff 1 in kWh
-        "+A T2"   = meter reading +A, tariff 2 in kWh
-        "-A"      = meter reading -A, tariff-free in kWh
-        "P"       = Sum of instantaneous power in all phases in W
-        "P L1"    = Instantaneous power phase L1 in W
-        "P L2"    = Instantaneous power phase L2 in W
-        "P L3"    = Instantaneous power phase L3 in W
-        +A: Active energy, grid supplies to customer.
-        -A: Active energy, customer supplies to grid
-    */
-    const std::map <std::string, std::string> Units = {
-        { "+A", "kWh" },
-        { "+A T1", "kWh" },
-        { "+A T2", "kWh" },
-        { "-A", "kWh" },
-        { "P", "W" },
-        { "P L1", "W" },
-        { "P L2", "W" },
-        { "P L3", "W" }
+    /// @brief The electricity meter readings.
+    class Readings
+    {
+    public:
+        constexpr static double InvalidValue = -1.0;
+
+        /// @brief meter reading +A, tariff-free in kWh (+A: Active energy, grid supplies to customer)
+        double PlusA = InvalidValue;   
+        constexpr static const char * UnitPlusA = "kWh";
+
+        /// @brief meter reading +A, tariff 1 in kWh (+A: Active energy, grid supplies to customer)
+        double PlusA_T1 = InvalidValue;   
+        constexpr static const char * UnitPlusA_T1 = "kWh";
+
+        /// @brief meter reading +A, tariff 2 in kWh (+A: Active energy, grid supplies to customer)
+        double PlusA_T2 = InvalidValue;   
+        constexpr static const char * UnitPlusA_T2 = "kWh";
+
+        /// @brief meter reading -A, tariff-free in kWh (-A: Active energy, customer supplies to grid)
+        double MinusA = InvalidValue;   
+        constexpr static const char * UnitMinusA = "kWh";
+
+        /// @brief Sum of instantaneous power in all phases in W
+        double Power = InvalidValue;   
+        constexpr static const char * UnitPower = "W";
+
+        /// @brief Instantaneous power phase L1 in W
+        double PowerL1 = InvalidValue;   
+        constexpr static const char * UnitPowerL1 = "W";
+
+        /// @brief Instantaneous power phase L2 in W
+        double PowerL2 = InvalidValue;   
+        constexpr static const char * UnitPowerL2 = "W";
+
+        /// @brief Instantaneous power phase L3 in W
+        double PowerL3 = InvalidValue;   
+        constexpr static const char * UnitPowerL3 = "W";
+
+        /// @brief Sets all values to "InvalidValue".
+        void Clear();
+
+        /// @brief Prints the readings.
+        /// @param os The stream where the readings shall be printed.
+        void Print(std::ostream & os);
     };
 
     /// @brief EbzDd3 error.
@@ -84,6 +108,12 @@ public:
     /// @param channelNum The channel (= the electricity meter) 0 or 1.
     void SelectChannel(int channelNum);
 
+    /// @brief Receives the information from a electricity meter. (The meter readings.)
+    /// @param channelNum The channel (= the electricity meter) 0 or 1.
+    /// @param readings The electricity meter readings.
+    /// @return True if readings are valid.
+    bool ReceiveInfo(int channelNum, Readings & readings);
+
 private:
     std::string _serialPortName;
     int _gpioSwitch;
@@ -103,5 +133,15 @@ private:
     /// @param channelNum The channel (= electricity meter 0 or 1).
     void ReceiveInfoData(std::vector <uint8_t> & data, int channelNum);
 
+    /// @brief Extracts meter readings from the received raw data.
+    /// @param data The received raw data.
+    /// @param readings The meter readinds.
+    static void ExtractInfoFromData(const std::vector <uint8_t> & data, Readings & readings);
+
+    /// @brief Extracts meter reading from one dataset.
+    /// @param dataSet The data for one reading.
+    /// @param readings Where to store the reading.
+    /// @return True if a known reading was found-
+    static bool ExtractInfoFromDataSet(const SmlData & dataSet, Readings & readings);
 };
 
