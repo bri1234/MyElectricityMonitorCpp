@@ -29,6 +29,8 @@ IN THE SOFTWARE.
 #include <vector>
 #include <map>
 #include <cstdint>
+#include <format>
+#include <memory>
 
 /// @brief Class for communication with HM300, HM350, HM400, HM600, HM700, HM800, HM1200 & HM1500 inverter. (DTU means 'data transfer unit'.)
 class HoymilesHmDtu
@@ -42,10 +44,14 @@ public:
         Error(const std::string & errorMessage) : std::runtime_error(std::format("Hoymiles HM DTU error: {}", errorMessage)) { }
     };
 
-    HoymilesHmDtu(const std::string & inverterSerialNumber,
-                  int pinCsn = 0, int pinCe = 24);
+    /// @brief Creates a new Hoymiles HM communication object.
+    /// @param inverterSerialNumber The 12 digits inverter serial number. (As printed on the sticker on the inverter case.)
+    /// @param pinCSn The CSN pin as SPI device number (0 or 1), usually 0. Defaults to 0.
+    /// @param pinCE The GPIO pin connected to the NRF24L01 CE signal. Defaults to 24.
+    HoymilesHmDtu(const std::string & inverterSerialNumber, int pinCSn = 0, int pinCE = 24);
 
-
+    /// @brief Prints NRF24L01 module information on standard output.
+    void PrintNrf24l01Info();
                 
 private:
     // the nRF24L01 receive pipeline
@@ -69,10 +75,16 @@ private:
     // list of channels where the inverter sends the responses depending on the channel, where the request was received
     static const std::map <int, std::vector <int>> RX_CHANNEL_LISTS;
 
-    RF24 _radio;
+    std::shared_ptr<RF24> _radio;
 
     std::string _inverterSerialNumber;
-    
+    int _pinCSn;
+    int _pinCE;
+
+    std::vector<uint8_t> _dtuRadioAddress;
+    std::vector<uint8_t> _inverterRadioAddress;
+    int _inverterNumberOfChannels;
+
     /// @brief Generates a 4 byte DTU radio ID (data transfer unit, this device) from the system UUID. The radio ID is used to send and receive packets.
     /// @return The 4 bytes DTU radio ID.
     static std::vector <uint8_t> GenerateDtuRadioAddress();
@@ -81,5 +93,40 @@ private:
     /// @param inverterSerialNumber The 12 digits inverter serial number.
     /// @return The 4 bytes inverter radio ID.
     static std::vector <uint8_t> GetInverterRadioAddress(const std::string & inverterSerialNumber);
+
+    /// @brief Determines the number of inberter channels from serial number.
+    /// @param inverterSerialNumber The inverter serial number as printed on the sticker on the inverter case.
+    /// @return Number of inverter channels: 1 = HM300, HM350, HM400; 2 = HM600, HM700, HM800; 4 = HM1200, HM1500
+    static int GetInverterNumberOfChannels(const std::string & inverterSerialNumber);
+
+    /// @brief Throws an error if the communication is not intialized.
+    void AssertCommunicationIsInitialized() const;
+
+    /// @brief Replaces bytes with special meaning by escape sequences.
+    /// @param dest The destination buffer with the escaped data.
+    /// @param src The source buffer.
+    static void EscapeData(std::vector <uint8_t> & dest, const std::vector <uint8_t> & src);
+
+    /// @brief Remove escape sequences for bytes with special meanings.
+    /// @param dest The destination buffer with the unescaped data.
+    /// @param src The source buffer.
+    static void UnescapeData(std::vector <uint8_t> & dest, const std::vector <uint8_t> & src);
+    
+    /// @brief Calculates CRC8 checksum for communication with hoymiles inverters. poly = 0x101; reversed = False; init-value = 0x00; XOR-out = 0x00; Check = 0x31
+    /// @param data The byte array on which the ckecksum is to be calculated.
+    /// @param dataLen Number of bytes to be used to calculate the checksum.
+    /// @return The crc checksum.
+    static uint8_t CalculateCrc8(const std::vector <uint8_t> & data, size_t dataLen);
+
+    /// @brief Calculates CRC16 checksum for communication with hoymiles inverters. poly = 0x8005; reversed = True; init-value = 0xFFFF; XOR-out = 0x0000; Check = 0x4B37
+    /// @param data The byte array on which the ckecksum is to be calculated.
+    /// @param dataLen Number of bytes to be used to calculate the checksum.
+    /// @return The crc checksum.
+    static uint16_t CalculateCrc16(const std::vector <uint8_t> & data, size_t dataLen);
+
+    /// @brief Checks the checksum of a packet.
+    /// @param packet The packet to be checked.
+    /// @return True if the checksum is valid.
+    static bool CheckPacketChecksum(const std::vector <uint8_t> & packet);
 };
 

@@ -45,4 +45,42 @@ namespace Utils
         return d;
     }
 
+    std::vector<uint8_t> UInt32ToBytes(uint32_t number, bool bigEndian)
+    {
+        std::vector<uint8_t> bytes;
+
+        for (int idx = 0; idx < 4; idx++)
+        {
+            bytes.push_back(static_cast<uint8_t>(number & 0xFF));
+            number >>= 8;
+        }
+
+        if (bigEndian)
+            std::reverse(bytes.begin(), bytes.end());
+            
+        return bytes;
+    }
+
+    uint16_t GetUInt16(const std::vector<uint8_t> & data, int position)
+    {
+        uint16_t n = data[position];
+        n <<= 8;
+        n |= data[position + 1];
+
+        return n;
+    }
+
+    uint32_t GetUInt32(const std::vector<uint8_t> & data, int position)
+    {
+        uint32_t n = data[position];
+        n <<= 8;
+        n |= data[position + 1];
+        n <<= 8;
+        n |= data[position + 2];
+        n <<= 8;
+        n |= data[position + 3];
+
+        return n;
+    }
+
 }

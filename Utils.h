@@ -82,24 +82,21 @@ namespace Utils
     /// @return The converted double.
     double StrToDouble(const std::string & str);
 
-    /// @brief Converts a number to an array of bytes.
-    /// @tparam T Number type.
+    /// @brief Converts a 32 bit unsigned int to an array of bytes.
     /// @param number The number to convert to bytes.
+    /// @param bigEndian The byte order.
     /// @return The bytes.
-    template <typename T>
-    std::vector<uint8_t> ToBytes(T number, int numberOfBytes, bool bigEndian)
-    {
-        std::vector<uint8_t> bytes;
+    std::vector<uint8_t> UInt32ToBytes(uint32_t number, bool bigEndian);
 
-        for (int idx = 0; idx < numberOfBytes; idx++)
-        {
-            bytes.push_back(static_cast<uint8_t>(number & 0xFF));
-            number >>= 8;
-        }
-
-        if (bigEndian)
-            std::reverse(bytes.begin(), bytes.end());
-            
-        return bytes;
-    }
+    /// @brief Extracts a 16-bit unsigned integer from data. (big endian)
+    /// @param data The raw data.
+    /// @param position The position where the integer is located in the data.
+    /// @return The 16 bit integer.
+    uint16_t GetUInt16(const std::vector <uint8_t> & data, int position);
+    
+    /// @brief Extracts a 32-bit unsigned integer from data. (big endian)
+    /// @param data The raw data.
+    /// @param position The position where the integer is located in the data.
+    /// @return The 32 bit integer.
+    uint32_t GetUInt32(const std::vector <uint8_t> & data, int position);
 }
