@@ -28,6 +28,8 @@ IN THE SOFTWARE.
 #include <string>
 #include <sstream>
 #include <chrono>
+#include <cstdint>
+#include <algorithm>
 
 namespace Utils
 {
@@ -80,4 +82,24 @@ namespace Utils
     /// @return The converted double.
     double StrToDouble(const std::string & str);
 
+    /// @brief Converts a number to an array of bytes.
+    /// @tparam T Number type.
+    /// @param number The number to convert to bytes.
+    /// @return The bytes.
+    template <typename T>
+    std::vector<uint8_t> ToBytes(T number, int numberOfBytes, bool bigEndian)
+    {
+        std::vector<uint8_t> bytes;
+
+        for (int idx = 0; idx < numberOfBytes; idx++)
+        {
+            bytes.push_back(static_cast<uint8_t>(number & 0xFF));
+            number >>= 8;
+        }
+
+        if (bigEndian)
+            std::reverse(bytes.begin(), bytes.end());
+            
+        return bytes;
+    }
 }
