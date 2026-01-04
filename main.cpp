@@ -92,16 +92,16 @@ int main(int argc, char **argv)
                 this_thread::sleep_for(chrono::seconds(30));
             }
         }
-        catch(const exception & e)
+        catch(const exception & exc)
         {
-            LOG_ERROR(e);
+            LOG_ERROR(exc);
         }
 
         LOG_INFO("*** PROGRAM STOPPED ***");
     }
-    catch(const exception & e)
+    catch(const exception & exc)
     {
-        cerr << e.what() << endl;
+        cerr << exc.what() << endl;
     }
 
     return 0;

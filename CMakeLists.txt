@@ -23,6 +23,7 @@ target_sources(MyElectricityMonitor
         HoymilesHmDtu.cpp
         Gpio.cpp
         SerialPort.cpp
+        OnScopeExit.cpp
         main.cpp
 )
 

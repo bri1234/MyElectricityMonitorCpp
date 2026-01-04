@@ -31,6 +31,7 @@ IN THE SOFTWARE.
 #include <cstdint>
 #include <format>
 #include <memory>
+#include <random>
 
 /// @brief Class for communication with HM300, HM350, HM400, HM600, HM700, HM800, HM1200 & HM1500 inverter. (DTU means 'data transfer unit'.)
 class HoymilesHmDtu
@@ -43,16 +44,103 @@ public:
     public:
         Error(const std::string & errorMessage) : std::runtime_error(std::format("Hoymiles HM DTU error: {}", errorMessage)) { }
     };
+    
+    class ChannelReadings
+    {
+    public:
+        typedef std::vector<ChannelReadings> list_type;
+
+        double DcVoltage = 0.0;
+        constexpr static const char * UnitDcVoltage = "V";
+
+        double DcCurrent = 0.0;
+        constexpr static const char * UnitDcCurrent = "A";
+
+        double DcPower = 0.0;
+        constexpr static const char * UnitDcPower = "W";
+
+        double DcEnergyTotal = 0.0;
+        constexpr static const char * UnitDcEnergyTotal = "kWh";
+
+        double DcEnergyDay = 0.0;
+        constexpr static const char * UnitDcEnergyDay = "Wh";
+    };
+
+    class Readings
+    {
+    public:
+        
+        double AcVoltage = 0.0;
+        constexpr static const char * UnitAcVoltage = "V";
+
+        double AcCurrent = 0.0;
+        constexpr static const char * UnitAcCurrent = "A";
+
+        double AcFrequency = 0.0;
+        constexpr static const char * UnitAcFrequency = "Hz";
+
+        double AcPower = 0.0;
+        constexpr static const char * UnitAcPower = "W";
+
+        double AcPowerFactor = 0.0;
+        constexpr static const char * UnitAcPowerFactor = "";
+
+        double AcReactivePower = 0.0; // Q = Blindleistung
+        constexpr static const char * UnitAcReactivePower = "var";
+
+        double Temperature = 0.0; 
+        constexpr static const char * UnitTemperature = "°C";
+
+        double EVT = 0.0; 
+        constexpr static const char * UnitEVT = "";
+
+        Readings(int numberOfChannels = 1);
+
+        /// @brief Returns the number of channels.
+        /// @return The number of channels.
+        int NumberOfChannels() const { return (int)_channelReadingsList.size(); }
+
+        /// @brief The channel readings.
+        /// @param channelNumber The channel number. (starts at 0)
+        /// @return The channel readings.
+        const ChannelReadings & GetChannelReadings(int channelNumber) const { return _channelReadingsList.at(channelNumber); }
+
+        /// @brief Stores the readings of one channel.
+        /// @param channelNumber The channel number. (starts at 0)
+        /// @param newChannelReadings The readings to be stored.
+        void SetChannelReadings(int channelNumber, const ChannelReadings & newChannelReadings) { _channelReadingsList.at(channelNumber) = newChannelReadings; }
+
+        /// @brief Clears the readings.
+        /// @param numberOfChannels The number of channels.
+        void Clear(int numberOfChannels);
+
+    private:
+        ChannelReadings::list_type _channelReadingsList;
+    };
 
     /// @brief Creates a new Hoymiles HM communication object.
     /// @param inverterSerialNumber The 12 digits inverter serial number. (As printed on the sticker on the inverter case.)
     /// @param pinCSn The CSN pin as SPI device number (0 or 1), usually 0. Defaults to 0.
     /// @param pinCE The GPIO pin connected to the NRF24L01 CE signal. Defaults to 24.
     HoymilesHmDtu(const std::string & inverterSerialNumber, int pinCSn = 0, int pinCE = 24);
+    virtual ~HoymilesHmDtu();
 
     /// @brief Prints NRF24L01 module information on standard output.
     void PrintNrf24l01Info();
-                
+
+    /// @brief Initializes the communication.
+    void InitializeCommunication();
+
+    /// @brief Terminates the communication.
+    void TerminateCommunication();
+
+    /// @brief Requests info data from the inverter and returns the inverter response.
+    /// @param readings The readings from the inverter.
+    /// @param numberOfRetries Number of requests before giving up.
+    /// @param waitBeforeRetry Time (in s) to wait before a new request is sent to the inverter if the previous request was not successful.
+    /// @return Success (true or false)
+    bool QueryInverterInfo(Readings & readings, int numberOfRetries = 20, double waitBeforeRetry = 1.0);
+
 private:
     // the nRF24L01 receive pipeline
     constexpr static int RX_PIPE_NUM = 1;
@@ -83,7 +171,15 @@ private:
 
     std::vector<uint8_t> _dtuRadioAddress;
     std::vector<uint8_t> _inverterRadioAddress;
+
+    std::vector<uint8_t> _writingPipeAddress;
+    std::vector<uint8_t> _readingPipeAddress;
+
     int _inverterNumberOfChannels;
+
+    // needed for random numbers
+    std::minstd_rand _randomEngine;
+    std::uniform_int_distribution<int> _randomTxChannel;
 
     /// @brief Generates a 4 byte DTU radio ID (data transfer unit, this device) from the system UUID. The radio ID is used to send and receive packets.
     /// @return The 4 bytes DTU radio ID.
@@ -128,5 +224,19 @@ private:
     /// @param packet The packet to be checked.
     /// @return True if the checksum is valid.
     static bool CheckPacketChecksum(const std::vector <uint8_t> & packet);
+
+    /// @brief Creates the packet header.
+    /// @param packetHeader The created packet header.
+    /// @param command The packet command.
+    /// @param receiverAddr The address of the receiver generated from the receiver (inverter) serial number. (4 bytes)
+    /// @param senderAddr The address of the sender generated from the sender (DTU) serial number. (4 bytes)
+    /// @param frame The frame number for message data.
+    static void CreatePacketHeader(std::vector <uint8_t> & packetHeader, uint8_t command,
+        const std::vector <uint8_t> & receiverAddr, const std::vector <uint8_t> & senderAddr, uint8_t frame);
+    
+    /// @brief Creates payload data for info request filled with the time.
+    /// @param payload The payload data.
+    /// @param currentTime The current time in seconds since the epoch.
+    static void CreateRequestInfoPayload(std::vector <uint8_t> & payload, uint32_t currentTime);
 };
 

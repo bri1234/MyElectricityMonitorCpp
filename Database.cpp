@@ -55,9 +55,9 @@ Database::~Database()
     {
         CloseDatabase();
     }
-    catch(const exception & e)
+    catch(const exception & exc)
     {
-        LOG_ERROR(e);
+        LOG_ERROR(exc);
     }
 }
 

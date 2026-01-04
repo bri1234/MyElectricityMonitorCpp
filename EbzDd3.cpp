@@ -59,9 +59,9 @@ EbzDd3::~EbzDd3()
     {
         Close();
     }
-    catch (const exception & e)
+    catch (const exception & exc)
     {
-        LOG_ERROR(e);
+        LOG_ERROR(exc);
     }
 }
 

@@ -25,10 +25,16 @@ IN THE SOFTWARE.
 #include "HoymilesHmDtu.h"
 
 #include "Utils.h"
+#include "OnScopeExit.h"
+#include "Logger.h"
 
 #include <unistd.h>
+#include <iostream>
+#include <thread>
+#include <chrono>
 
 using namespace std;
+using namespace std::chrono;
 using namespace Utils;
 
 const std::vector<int> HoymilesHmDtu::TX_CHANNELS = { 3, 23, 40, 61, 75 };
@@ -41,10 +47,26 @@ const std::map <int, std::vector <int>> RX_CHANNEL_LISTS = {
     { 75, {  3, 23, 40 }},
 };
 
+HoymilesHmDtu::Readings::Readings(int numberOfChannels)
+{
+    Clear(numberOfChannels);
+}
+
+void HoymilesHmDtu::Readings::Clear(int numberOfChannels)
+{
+    if ((numberOfChannels != 1) && (numberOfChannels != 2) && (numberOfChannels != 4))
+        throw Error(format("Invalid number of channels: {}", numberOfChannels));
+    
+    _channelReadingsList.clear();
+    _channelReadingsList.resize(numberOfChannels);
+}
+
 HoymilesHmDtu::HoymilesHmDtu(const std::string & inverterSerialNumber, int pinCSn, int pinCE)
     : _inverterSerialNumber(inverterSerialNumber)
     , _pinCSn(pinCSn)
     , _pinCE(pinCE)
+    , _randomEngine()
+    , _randomTxChannel(0, TX_CHANNELS.size() - 1)
 {
     if (_inverterSerialNumber.length() != 12)
         throw Error(format("Inverter serial number has not 12 digits: {}", _inverterSerialNumber));
@@ -53,7 +75,25 @@ HoymilesHmDtu::HoymilesHmDtu(const std::string & inverterSerialNumber, int pinCS
     _inverterRadioAddress = GetInverterRadioAddress(_inverterSerialNumber);
     _inverterNumberOfChannels = GetInverterNumberOfChannels(_inverterSerialNumber);
 
-    // _radio(pinCe, pinCsn, SPI_FREQUENCY_HZ)
+    _writingPipeAddress.push_back(0x01);
+    AppendRange(_writingPipeAddress, _inverterRadioAddress);
+
+    _readingPipeAddress.push_back(0x01);
+    AppendRange(_readingPipeAddress, _dtuRadioAddress);
+
+    
+}
+
+HoymilesHmDtu::~HoymilesHmDtu()
+{
+    try
+    {
+        TerminateCommunication();
+    }
+    catch(const exception & exc)
+    {
+        cerr << exc.what() << endl;
+    }
 }
 
 void HoymilesHmDtu::PrintNrf24l01Info()
@@ -259,4 +299,151 @@ bool HoymilesHmDtu::CheckPacketChecksum(const std::vector<uint8_t> & packet)
 
     return checksum1 == checksum2;
 }
+
+void HoymilesHmDtu::InitializeCommunication()
+{
+    TerminateCommunication();
+
+    auto radio = make_shared<RF24>(_pinCE, _pinCSn, SPI_FREQUENCY_HZ);
+
+    if (!radio->begin())
+        throw Error("Can not initialize RF24!");
+    
+    if (!radio->isChipConnected())
+        throw Error("Error chip is not connected!");
+
+    radio->stopListening();
+
+    radio->setDataRate(RF24_250KBPS);
+    radio->setPALevel(RF24_PA_MIN);
+    radio->setCRCLength(RF24_CRC_16);
+    radio->setAddressWidth(5);
+
+    radio->openWritingPipe(&(_writingPipeAddress[0]));
+    radio->openReadingPipe(RX_PIPE_NUM, &(_readingPipeAddress[0]));
+
+    radio->enableDynamicPayloads();
+    radio->setRetries(3, 10);
+    radio->setAutoAck(true);
+
+    _radio = radio;
+}
+
+void HoymilesHmDtu::TerminateCommunication()
+{
+    if (!_radio)
+        return;
+
+    // recommended idle behavior is TX mode
+    _radio->stopListening();
+
+    _radio.reset();
+}
+
+void HoymilesHmDtu::CreatePacketHeader(std::vector<uint8_t> & packetHeader, uint8_t command, const std::vector<uint8_t> & receiverAddr,
+    const std::vector<uint8_t> & senderAddr, uint8_t frame)
+{
+    packetHeader.clear();
+    packetHeader.reserve(10);
+
+    if (receiverAddr.size() != 4)
+        throw Error(format("Invalid length of receiver address: {}. (must be 4 bytes)", receiverAddr.size()));
+    
+    if (senderAddr.size() != 4)
+        throw Error(format("Invalid length of sender address: {}. (must be 4 bytes)", senderAddr.size()));
+    
+    packetHeader.push_back(command);
+    AppendRange(packetHeader, receiverAddr);
+    AppendRange(packetHeader, senderAddr);
+    packetHeader.push_back(frame);
+    
+    if (packetHeader.size() != 10)
+        throw Error(format("Internal error __CreatePacketHeader: size {} != 10", packetHeader.size()));
+}
+
+void HoymilesHmDtu::CreateRequestInfoPayload(std::vector<uint8_t> & payload, uint32_t currentTime)
+{
+    payload.clear();
+    payload.reserve(14);
+
+    payload.push_back(0x0B); // sub command
+    payload.push_back(0x00); // revision
+
+    payload.push_back((uint8_t)(currentTime >> 24));
+    payload.push_back((uint8_t)(currentTime >> 16));
+    payload.push_back((uint8_t)(currentTime >>  8));
+    payload.push_back((uint8_t)(currentTime >>  0));
+
+    payload.push_back(0x00);
+    payload.push_back(0x00);
+    payload.push_back(0x00);
+    
+    payload.push_back(0x05);
+
+    payload.push_back(0x00);
+    payload.push_back(0x00);
+    payload.push_back(0x00);
+    payload.push_back(0x00);
+
+    if (payload.size() != 14)
+        throw Error(format("Internal error CreateRequestInfoPayload: size {} != 14", payload.size()));
+}
+
+bool HoymilesHmDtu::QueryInverterInfo(Readings & readings, int numberOfRetries, double waitBeforeRetry)
+{
+    readings.Clear(_inverterNumberOfChannels);
+
+    if (!_radio)
+        throw Error("Communication is not initialized!");
+
+    _radio->flush_tx();
+    _radio->flush_rx();
+
+    OnScopeExit onScopeExit( [&] { _radio->setPALevel(RF24_PA_MIN); } );
+
+    // increase power level
+    _radio->setPALevel(RADIO_POWER_LEVEL);
+
+    vector <uint8_t> txPacket;
+
+    for (int retryIndex = 0; retryIndex < numberOfRetries; retryIndex++)
+    {
+        if (retryIndex > 0)
+            this_thread::sleep_for(chrono::milliseconds((int)(waitBeforeRetry * 1000.0)));
+
+        // select a random channel for the request
+        int txChannelIndex = _randomTxChannel(_randomEngine);
+        int txChannel = TX_CHANNELS.at(txChannelIndex);
+
+        auto rxChannelList = RX_CHANNEL_LISTS.find(txChannel);
+        if (rxChannelList == RX_CHANNEL_LISTS.end())
+            throw Error(format("Internal error: no RX channels for tx channel {}", txChannel));
+
+        // create packet to send to the inverter
+        uint32_t tm = static_cast<uint32_t>(duration_cast<seconds>(system_clock::now().time_since_epoch()).count());
+
+        CreateRequestInfoPacket(txPacket, _inverterRadioAddress, _dtuRadioAddress, tm);
+        
+        try
+        {
+            // send request and scan for responses
+            responseList = SendRequestAndScanForResponses(radio, txChannel, rxChannelList, txPacket)
+
+            // did we get a valid response?
+            success, responseData = EvaluateInverterInfoResponse(responseList, self.__inverterRadioAddress, self.__inverterNumberOfChannels)
+            if success:
+                success, info = ExtractInverterInfo(responseData, self.__inverterNumberOfChannels)
+                if success:
+                    return True, info
+        }
+        catch (const exception & exc)
+        {
+            // not successful, try again
+            LOG_ERROR(exc);
+        }       
+    }
+
+    return false;
+}
+
 
