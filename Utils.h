@@ -82,11 +82,17 @@ namespace Utils
     /// @return The converted double.
     double StrToDouble(const std::string & str);
 
-    /// @brief Converts a 32 bit unsigned int to an array of bytes.
+    /// @brief Converts a 16 bit unsigned int to an array of bytes.
+    /// @param buffer The buffer where the bytes shall be appended. (Buffer will not be cleared first.)
     /// @param number The number to convert to bytes.
     /// @param bigEndian The byte order.
-    /// @return The bytes.
-    std::vector<uint8_t> UInt32ToBytes(uint32_t number, bool bigEndian);
+    void UInt16ToBytes(std::vector<uint8_t> & buffer, uint16_t number, bool bigEndian);
+
+    /// @brief Converts a 32 bit unsigned int to an array of bytes.
+    /// @param buffer The buffer where the bytes shall be appended. (Buffer will not be cleared first.)
+    /// @param number The number to convert to bytes.
+    /// @param bigEndian The byte order.
+    void UInt32ToBytes(std::vector<uint8_t> & buffer, uint32_t number, bool bigEndian);
 
     /// @brief Extracts a 16-bit unsigned integer from data. (big endian)
     /// @param data The raw data.

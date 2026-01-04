@@ -50,6 +50,9 @@ public:
     public:
         typedef std::vector<ChannelReadings> list_type;
 
+        /// @brief The number of the channel: 1, 2, ...
+        int ChannelNumber = 0;
+
         double DcVoltage = 0.0;
         constexpr static const char * UnitDcVoltage = "V";
 
@@ -64,6 +67,10 @@ public:
 
         double DcEnergyDay = 0.0;
         constexpr static const char * UnitDcEnergyDay = "Wh";
+
+        /// @brief Prints the data.
+        /// @param os The output stream.
+        void Print(std::ostream & os) const;
     };
 
     class Readings
@@ -113,6 +120,10 @@ public:
         /// @brief Clears the readings.
         /// @param numberOfChannels The number of channels.
         void Clear(int numberOfChannels);
+
+        /// @brief Prints the data.
+        /// @param os The output stream.
+        void Print(std::ostream & os) const;
 
     private:
         ChannelReadings::list_type _channelReadingsList;
@@ -210,15 +221,17 @@ private:
     
     /// @brief Calculates CRC8 checksum for communication with hoymiles inverters. poly = 0x101; reversed = False; init-value = 0x00; XOR-out = 0x00; Check = 0x31
     /// @param data The byte array on which the ckecksum is to be calculated.
-    /// @param dataLen Number of bytes to be used to calculate the checksum.
+    /// @param startPos The start position. (index starts at 0)
+    /// @param endPos The end position. (The position after the last byte.)
     /// @return The crc checksum.
-    static uint8_t CalculateCrc8(const std::vector <uint8_t> & data, size_t dataLen);
+    static uint8_t CalculateCrc8(const std::vector <uint8_t> & data, size_t startPos, size_t endPos);
 
     /// @brief Calculates CRC16 checksum for communication with hoymiles inverters. poly = 0x8005; reversed = True; init-value = 0xFFFF; XOR-out = 0x0000; Check = 0x4B37
     /// @param data The byte array on which the ckecksum is to be calculated.
-    /// @param dataLen Number of bytes to be used to calculate the checksum.
+    /// @param startPos The start position. (index starts at 0)
+    /// @param endPos The end position. (The position after the last byte.)
     /// @return The crc checksum.
-    static uint16_t CalculateCrc16(const std::vector <uint8_t> & data, size_t dataLen);
+    static uint16_t CalculateCrc16(const std::vector <uint8_t> & data, size_t startPos, size_t endPos);
 
     /// @brief Checks the checksum of a packet.
     /// @param packet The packet to be checked.
@@ -226,7 +239,7 @@ private:
     static bool CheckPacketChecksum(const std::vector <uint8_t> & packet);
 
     /// @brief Creates the packet header.
-    /// @param packetHeader The created packet header.
+    /// @param packetHeader The created packet header. (This function does not clear the buffer.)
     /// @param command The packet command.
     /// @param receiverAddr The address of the receiver generated from the receiver (inverter) serial number. (4 bytes)
     /// @param senderAddr The address of the sender generated from the sender (DTU) serial number. (4 bytes)
@@ -235,8 +248,16 @@ private:
         const std::vector <uint8_t> & receiverAddr, const std::vector <uint8_t> & senderAddr, uint8_t frame);
     
     /// @brief Creates payload data for info request filled with the time.
-    /// @param payload The payload data.
+    /// @param payload The payload data. (This function does not clear the buffer.)
     /// @param currentTime The current time in seconds since the epoch.
     static void CreateRequestInfoPayload(std::vector <uint8_t> & payload, uint32_t currentTime);
+
+    /// @brief Creates the packet that can be sent to the inverter to request information.
+    /// @param packet The packet to be sent to the inverter. (This function clears the buffer first.)
+    /// @param receiverAddr The address of the receiver generated from the receiver (inverter) serial number. (4 bytes)
+    /// @param senderAddr The address of the sender generated from the sender (DTU) serial number. (4 bytes)
+    /// @param currentTime The current time in seconds since the start of the epoch.
+    static void CreateRequestInfoPacket(std::vector <uint8_t> & packet,
+        const std::vector <uint8_t> & receiverAddr, const std::vector <uint8_t> & senderAddr, uint32_t currentTime);
 };
 

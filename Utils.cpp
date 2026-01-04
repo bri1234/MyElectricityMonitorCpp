@@ -45,20 +45,36 @@ namespace Utils
         return d;
     }
 
-    std::vector<uint8_t> UInt32ToBytes(uint32_t number, bool bigEndian)
+    void UInt16ToBytes(std::vector<uint8_t> & buffer, uint16_t number, bool bigEndian)
     {
-        std::vector<uint8_t> bytes;
-
-        for (int idx = 0; idx < 4; idx++)
-        {
-            bytes.push_back(static_cast<uint8_t>(number & 0xFF));
-            number >>= 8;
-        }
-
         if (bigEndian)
-            std::reverse(bytes.begin(), bytes.end());
-            
-        return bytes;
+        {
+            buffer.push_back((uint8_t)(number >> 8));
+            buffer.push_back((uint8_t)(number >> 0));
+        }
+        else
+        {
+            buffer.push_back((uint8_t)(number >> 0));
+            buffer.push_back((uint8_t)(number >> 8));
+        }
+    }
+
+    void UInt32ToBytes(std::vector<uint8_t> & buffer, uint32_t number, bool bigEndian)
+    {
+        if (bigEndian)
+        {
+            buffer.push_back((uint8_t)(number >> 24));
+            buffer.push_back((uint8_t)(number >> 16));
+            buffer.push_back((uint8_t)(number >>  8));
+            buffer.push_back((uint8_t)(number >>  0));
+        }
+        else
+        {
+            buffer.push_back((uint8_t)(number >>  0));
+            buffer.push_back((uint8_t)(number >>  8));
+            buffer.push_back((uint8_t)(number >> 16));
+            buffer.push_back((uint8_t)(number >> 24));
+        }
     }
 
     uint16_t GetUInt16(const std::vector<uint8_t> & data, int position)

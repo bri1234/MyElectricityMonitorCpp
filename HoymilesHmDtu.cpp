@@ -47,6 +47,16 @@ const std::map <int, std::vector <int>> RX_CHANNEL_LISTS = {
     { 75, {  3, 23, 40 }},
 };
 
+void HoymilesHmDtu::ChannelReadings::Print(std::ostream & os) const
+{
+    os << "*** Channel " << ChannelNumber << " ***" << endl;
+    os << "    DC Voltage:   " << DcVoltage     << " " << UnitDcVoltage << endl;
+    os << "    DC Current:   " << DcCurrent     << " " << UnitDcCurrent << endl;
+    os << "    DC Power:     " << DcPower       << " " << UnitDcPower << endl;
+    os << "    Energy total: " << DcEnergyTotal << " " << UnitDcEnergyTotal << endl;
+    os << "    Energy day:   " << DcEnergyDay   << " " << UnitDcEnergyDay << endl;
+}
+
 HoymilesHmDtu::Readings::Readings(int numberOfChannels)
 {
     Clear(numberOfChannels);
@@ -59,6 +69,24 @@ void HoymilesHmDtu::Readings::Clear(int numberOfChannels)
     
     _channelReadingsList.clear();
     _channelReadingsList.resize(numberOfChannels);
+
+    for (int idx = 0; idx < (int)_channelReadingsList.size(); idx++)
+        _channelReadingsList[idx].ChannelNumber = idx + 1;
+}
+
+void HoymilesHmDtu::Readings::Print(std::ostream & os) const
+{
+    for (const auto & channelReadings : _channelReadingsList)
+        channelReadings.Print(os);
+
+    os << "    AC Voltage:        " << AcVoltage       << " " << UnitAcVoltage << endl;
+    os << "    AC Current:        " << AcCurrent       << " " << UnitAcCurrent << endl;
+    os << "    AC Power:          " << AcPower         << " " << UnitAcPower << endl;
+    os << "    AC Frequency:      " << AcFrequency     << " " << UnitAcFrequency << endl;
+    os << "    AC Power factor:   " << AcPowerFactor   << " " << UnitAcPowerFactor << endl;
+    os << "    AC Reactive power: " << AcReactivePower << " " << UnitAcReactivePower << endl;
+    os << "    Temperature:       " << Temperature     << " " << UnitTemperature << endl;
+    os << "    EVT:               " << EVT             << " " << UnitEVT << endl;
 }
 
 HoymilesHmDtu::HoymilesHmDtu(const std::string & inverterSerialNumber, int pinCSn, int pinCE)
@@ -116,7 +144,10 @@ std::vector<uint8_t> HoymilesHmDtu::GenerateDtuRadioAddress()
 
     id |= 0x80000000;
 
-    return UInt32ToBytes(id, true);
+    std::vector<uint8_t> bytes;
+    UInt32ToBytes(bytes, id, true);
+
+    return bytes;
 }
 
 std::vector<uint8_t> HoymilesHmDtu::GetInverterRadioAddress(const std::string & inverterSerialNumber)
@@ -245,11 +276,11 @@ void HoymilesHmDtu::UnescapeData(std::vector<uint8_t> & dest, const std::vector<
     }
 }
 
-uint8_t HoymilesHmDtu::CalculateCrc8(const std::vector<uint8_t> & data, size_t dataLen)
+uint8_t HoymilesHmDtu::CalculateCrc8(const std::vector<uint8_t> & data, size_t startPos, size_t endPos)
 {
     uint32_t crc = 0;
 
-    for (size_t idx = 0; idx < dataLen; idx++)
+    for (size_t idx = startPos; idx < endPos; idx++)
     {
         crc ^= data[idx];
 
@@ -267,11 +298,11 @@ uint8_t HoymilesHmDtu::CalculateCrc8(const std::vector<uint8_t> & data, size_t d
     return static_cast<uint8_t>(crc);
 }
 
-uint16_t HoymilesHmDtu::CalculateCrc16(const std::vector<uint8_t> & data, size_t dataLen)
+uint16_t HoymilesHmDtu::CalculateCrc16(const std::vector<uint8_t> & data, size_t startPos, size_t endPos)
 {
     uint32_t crc = 0xFFFF;
 
-    for (size_t idx = 0; idx < dataLen; idx++)
+    for (size_t idx = startPos; idx < endPos; idx++)
     {
         crc ^= data[idx];
 
@@ -294,7 +325,7 @@ uint16_t HoymilesHmDtu::CalculateCrc16(const std::vector<uint8_t> & data, size_t
 
 bool HoymilesHmDtu::CheckPacketChecksum(const std::vector<uint8_t> & packet)
 {
-    uint8_t checksum1 = CalculateCrc8(packet, packet.size() - 1);
+    uint8_t checksum1 = CalculateCrc8(packet, 0, packet.size() - 1);
     uint8_t checksum2 = packet[packet.size() - 1];
 
     return checksum1 == checksum2;
@@ -343,28 +374,26 @@ void HoymilesHmDtu::TerminateCommunication()
 void HoymilesHmDtu::CreatePacketHeader(std::vector<uint8_t> & packetHeader, uint8_t command, const std::vector<uint8_t> & receiverAddr,
     const std::vector<uint8_t> & senderAddr, uint8_t frame)
 {
-    packetHeader.clear();
-    packetHeader.reserve(10);
-
     if (receiverAddr.size() != 4)
         throw Error(format("Invalid length of receiver address: {}. (must be 4 bytes)", receiverAddr.size()));
     
     if (senderAddr.size() != 4)
         throw Error(format("Invalid length of sender address: {}. (must be 4 bytes)", senderAddr.size()));
     
+    size_t sz = packetHeader.size();
+
     packetHeader.push_back(command);
     AppendRange(packetHeader, receiverAddr);
     AppendRange(packetHeader, senderAddr);
     packetHeader.push_back(frame);
     
-    if (packetHeader.size() != 10)
+    if (packetHeader.size() - sz != 10)
         throw Error(format("Internal error __CreatePacketHeader: size {} != 10", packetHeader.size()));
 }
 
 void HoymilesHmDtu::CreateRequestInfoPayload(std::vector<uint8_t> & payload, uint32_t currentTime)
 {
-    payload.clear();
-    payload.reserve(14);
+    size_t sz = payload.size();
 
     payload.push_back(0x0B); // sub command
     payload.push_back(0x00); // revision
@@ -377,16 +406,51 @@ void HoymilesHmDtu::CreateRequestInfoPayload(std::vector<uint8_t> & payload, uin
     payload.push_back(0x00);
     payload.push_back(0x00);
     payload.push_back(0x00);
+
+    payload[9] = 0x05;
     
-    payload.push_back(0x05);
-
     payload.push_back(0x00);
     payload.push_back(0x00);
     payload.push_back(0x00);
     payload.push_back(0x00);
-
-    if (payload.size() != 14)
+    
+    if (payload.size() - sz != 14)
         throw Error(format("Internal error CreateRequestInfoPayload: size {} != 14", payload.size()));
+}
+
+void HoymilesHmDtu::CreateRequestInfoPacket(std::vector<uint8_t> & packet, const std::vector<uint8_t> & receiverAddr,
+    const std::vector<uint8_t> & senderAddr, uint32_t currentTime)
+{
+    packet.clear();
+    packet.reserve(MAX_PACKET_SIZE);
+
+    vector<uint8_t> tmp;
+    tmp.reserve(MAX_PACKET_SIZE);
+    
+    // add the header
+    CreatePacketHeader(tmp, 0x15, receiverAddr, senderAddr, 0x80);
+
+    // add the payload
+    size_t payloadStartPos = tmp.size();
+    CreateRequestInfoPayload(tmp, currentTime);
+
+    // add the payload checksum
+    uint16_t payloadChecksum = CalculateCrc16(tmp, payloadStartPos, tmp.size());
+    UInt16ToBytes(tmp, payloadChecksum, true);
+
+    // add the packet checksum
+    uint8_t packetChecksum = CalculateCrc8(tmp, 0, tmp.size());
+    tmp.push_back(packetChecksum);
+
+    // check the length
+    if (tmp.size() != 27)
+        throw Error(format("Internal error CreateRequestInfoPacket: packet size {} != 27", packet.size()));
+
+    // replace special characters
+    EscapeData(packet, tmp);
+
+    if (packet.size() > MAX_PACKET_SIZE)
+        throw Error(format("Internal error CreateRequestInfoPacket: packet size {} > MAX_PACKET_SIZE {}", packet.size(), MAX_PACKET_SIZE));
 }
 
 bool HoymilesHmDtu::QueryInverterInfo(Readings & readings, int numberOfRetries, double waitBeforeRetry)
@@ -399,6 +463,7 @@ bool HoymilesHmDtu::QueryInverterInfo(Readings & readings, int numberOfRetries, 
     _radio->flush_tx();
     _radio->flush_rx();
 
+    // set power level to minimum at the end of the function
     OnScopeExit onScopeExit( [&] { _radio->setPALevel(RF24_PA_MIN); } );
 
     // increase power level
@@ -445,5 +510,4 @@ bool HoymilesHmDtu::QueryInverterInfo(Readings & readings, int numberOfRetries, 
 
     return false;
 }
-
 
