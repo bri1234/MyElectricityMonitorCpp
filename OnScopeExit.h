@@ -38,10 +38,10 @@ public:
     }
 
     OnScopeExit(const OnScopeExit &) = delete;
-    OnScopeExit(scope_guard && other) = delete;
+    // OnScopeExit(scope_guard && other) = delete;
 
     OnScopeExit & operator=(const OnScopeExit &) = delete;
-    OnScopeExit & operator=(OnScopeExit && other) = delete;
+    // OnScopeExit & operator=(OnScopeExit && other) = delete;
 
     ~OnScopeExit()
     {

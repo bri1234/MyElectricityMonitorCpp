@@ -271,12 +271,12 @@ void EbzDd3::Readings::Clear()
 
 void EbzDd3::Readings::Print(std::ostream & os)
 {
-    os << "+A = " << PlusA << " " << UnitPlusA << endl;
+    os << "+A    = " << PlusA << " " << UnitPlusA << endl;
     os << "+A T1 = " << PlusA_T1 << " " << UnitPlusA_T1 << endl;
     os << "+A T2 = " << PlusA_T2 << " " << UnitPlusA_T2 << endl;
-    os << "-A = " << MinusA << " " << UnitMinusA << endl;
-    os << "P = " << Power << " " << UnitPower << endl;
-    os << "P L1 = " << PowerL1 << " " << UnitPowerL1 << endl;
-    os << "P L2 = " << PowerL2 << " " << UnitPowerL2 << endl;
-    os << "P L3 = " << PowerL3 << " " << UnitPowerL3 << endl;
+    os << "-A    = " << MinusA << " " << UnitMinusA << endl;
+    os << "P     = " << Power << " " << UnitPower << endl;
+    os << "P L1  = " << PowerL1 << " " << UnitPowerL1 << endl;
+    os << "P L2  = " << PowerL2 << " " << UnitPowerL2 << endl;
+    os << "P L3  = " << PowerL3 << " " << UnitPowerL3 << endl;
 }

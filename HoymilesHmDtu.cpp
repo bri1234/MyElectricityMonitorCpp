@@ -34,12 +34,12 @@ IN THE SOFTWARE.
 #include <chrono>
 
 using namespace std;
-using namespace std::chrono;
 using namespace Utils;
+using namespace std::chrono;
 
 const std::vector<int> HoymilesHmDtu::TX_CHANNELS = { 3, 23, 40, 61, 75 };
 
-const std::map <int, std::vector <int>> RX_CHANNEL_LISTS = {
+const std::map <int, std::vector <int>> HoymilesHmDtu::RX_CHANNEL_LISTS = {
     {  3, { 23, 40, 61 }},
     { 23, { 40, 61, 75 }},
     { 40, { 61, 75,  3 }},
@@ -47,31 +47,33 @@ const std::map <int, std::vector <int>> RX_CHANNEL_LISTS = {
     { 75, {  3, 23, 40 }},
 };
 
-void HoymilesHmDtu::ChannelReadings::Print(std::ostream & os) const
+HoymilesHmDtu::ChannelReadings::ChannelReadings()
+: _channelNumber(0)
 {
-    os << "*** Channel " << ChannelNumber << " ***" << endl;
-    os << "    DC Voltage:   " << DcVoltage     << " " << UnitDcVoltage << endl;
-    os << "    DC Current:   " << DcCurrent     << " " << UnitDcCurrent << endl;
-    os << "    DC Power:     " << DcPower       << " " << UnitDcPower << endl;
-    os << "    Energy total: " << DcEnergyTotal << " " << UnitDcEnergyTotal << endl;
-    os << "    Energy day:   " << DcEnergyDay   << " " << UnitDcEnergyDay << endl;
 }
 
-HoymilesHmDtu::Readings::Readings(int numberOfChannels)
+HoymilesHmDtu::ChannelReadings::ChannelReadings(int channelNumber)
+: _channelNumber(channelNumber)
 {
-    Clear(numberOfChannels);
 }
 
-void HoymilesHmDtu::Readings::Clear(int numberOfChannels)
+void HoymilesHmDtu::ChannelReadings::Print(std::ostream &os) const
 {
-    if ((numberOfChannels != 1) && (numberOfChannels != 2) && (numberOfChannels != 4))
-        throw Error(format("Invalid number of channels: {}", numberOfChannels));
-    
-    _channelReadingsList.clear();
-    _channelReadingsList.resize(numberOfChannels);
+    os << "*** Channel " << _channelNumber << " ***" << endl;
+    os << "    DC Voltage:   " << _dcVoltage     << " " << UnitDcVoltage << endl;
+    os << "    DC Current:   " << _dcCurrent     << " " << UnitDcCurrent << endl;
+    os << "    DC Power:     " << _dcPower       << " " << UnitDcPower << endl;
+    os << "    Energy total: " << _dcEnergyTotal << " " << UnitDcEnergyTotal << endl;
+    os << "    Energy day:   " << _dcEnergyDay   << " " << UnitDcEnergyDay << endl;
+}
 
-    for (int idx = 0; idx < (int)_channelReadingsList.size(); idx++)
-        _channelReadingsList[idx].ChannelNumber = idx + 1;
+void HoymilesHmDtu::ChannelReadings::ExtractReadings(const buffer_type & data, int idxV, int idxC, int idxP, int idxEtotal, int idxEday)
+{
+    _dcVoltage = GetUInt16(data, idxV) / 10.0;              // V
+    _dcCurrent = GetUInt16(data, idxC) / 100.0;             // A
+    _dcPower = GetUInt16(data, idxP) / 10.0;                // W
+    _dcEnergyTotal = GetUInt32(data, idxEtotal) / 1000.0;   // kWh
+    _dcEnergyDay = GetUInt16(data, idxEday) / 1.0;          // Wh
 }
 
 void HoymilesHmDtu::Readings::Print(std::ostream & os) const
@@ -79,14 +81,60 @@ void HoymilesHmDtu::Readings::Print(std::ostream & os) const
     for (const auto & channelReadings : _channelReadingsList)
         channelReadings.Print(os);
 
-    os << "    AC Voltage:        " << AcVoltage       << " " << UnitAcVoltage << endl;
-    os << "    AC Current:        " << AcCurrent       << " " << UnitAcCurrent << endl;
-    os << "    AC Power:          " << AcPower         << " " << UnitAcPower << endl;
-    os << "    AC Frequency:      " << AcFrequency     << " " << UnitAcFrequency << endl;
-    os << "    AC Power factor:   " << AcPowerFactor   << " " << UnitAcPowerFactor << endl;
-    os << "    AC Reactive power: " << AcReactivePower << " " << UnitAcReactivePower << endl;
-    os << "    Temperature:       " << Temperature     << " " << UnitTemperature << endl;
-    os << "    EVT:               " << EVT             << " " << UnitEVT << endl;
+    os << "    AC Voltage:        " << _acVoltage       << " " << UnitAcVoltage << endl;
+    os << "    AC Current:        " << _acCurrent       << " " << UnitAcCurrent << endl;
+    os << "    AC Power:          " << _acPower         << " " << UnitAcPower << endl;
+    os << "    AC Frequency:      " << _acFrequency     << " " << UnitAcFrequency << endl;
+    os << "    AC Power factor:   " << _acPowerFactor   << " " << UnitAcPowerFactor << endl;
+    os << "    AC Reactive power: " << _acReactivePower << " " << UnitAcReactivePower << endl;
+    os << "    Temperature:       " << _temperature     << " " << UnitTemperature << endl;
+    os << "    EVT:               " << _EVT             << " " << UnitEVT << endl;
+}
+
+void HoymilesHmDtu::Readings::ExtractReadings(int numberOfChannels, const buffer_type & data)
+{
+    if ((numberOfChannels != 1) && (numberOfChannels != 2) && (numberOfChannels != 4))
+        throw Error(format("ExtractReadings: Invalid number of channels: {} (valid: 1, 2 or 4)", numberOfChannels));
+
+    _channelReadingsList.resize(numberOfChannels);
+
+    switch (numberOfChannels)
+    {
+        case 1:
+            _channelReadingsList.at(0).ExtractReadings(data, 2, 4, 6, 8, 12);
+            ExtractReadings(data, 14, 16, 18, 20, 22, 24, 26, 28);
+            break;
+
+        case 2:
+            _channelReadingsList.at(0).ExtractReadings(data, 2, 4, 6, 14, 22);
+            _channelReadingsList.at(1).ExtractReadings(data, 8, 10, 12, 18, 24);
+            ExtractReadings(data, 26, 28, 30, 32, 34, 36, 38, 40);
+            break;
+
+        case 4:
+            _channelReadingsList.at(0).ExtractReadings(data, 2, 4, 8, 12, 20);
+            _channelReadingsList.at(1).ExtractReadings(data, 2, 6, 10, 16, 22);
+            _channelReadingsList.at(2).ExtractReadings(data, 24, 26, 30, 34, 42);
+            _channelReadingsList.at(3).ExtractReadings(data, 24, 28, 32, 38, 44);
+            ExtractReadings(data, 46, 48, 50, 52, 54, 56, 58, 60);
+            break;
+
+        default:
+            throw Error(format("ExtractReadings: Invalid number of channels {}", numberOfChannels));
+    }
+}
+
+void HoymilesHmDtu::Readings::ExtractReadings(const buffer_type & data,
+    int idxV, int idxF, int idxP, int idxRP, int idxC, int idxPF, int idxT, int idxEVT)
+{
+    _acVoltage = GetUInt16(data, idxV) / 10.0;          // V
+    _acFrequency = GetUInt16(data, idxF) / 100.0;       // Hz
+    _acPower = GetUInt16(data, idxP) / 10.0;            // W
+    _acReactivePower = GetUInt16(data, idxRP) / 10.0;   // var (W)
+    _acCurrent = GetUInt16(data, idxC) / 100.0;         // A
+    _acPowerFactor = GetUInt16(data, idxPF) / 1000.0;   // -
+    _temperature = GetUInt16(data, idxT) / 10.0;        // °C
+    _EVT = GetUInt16(data, idxEVT) / 1.0;               // -
 }
 
 HoymilesHmDtu::HoymilesHmDtu(const std::string & inverterSerialNumber, int pinCSn, int pinCE)
@@ -130,7 +178,7 @@ void HoymilesHmDtu::PrintNrf24l01Info()
     _radio->printPrettyDetails();
 }
 
-std::vector<uint8_t> HoymilesHmDtu::GenerateDtuRadioAddress()
+HoymilesHmDtu::buffer_type HoymilesHmDtu::GenerateDtuRadioAddress()
 {
     long uuid = gethostid();
     uint32_t id = 0;
@@ -144,13 +192,13 @@ std::vector<uint8_t> HoymilesHmDtu::GenerateDtuRadioAddress()
 
     id |= 0x80000000;
 
-    std::vector<uint8_t> bytes;
+    buffer_type bytes;
     UInt32ToBytes(bytes, id, true);
 
     return bytes;
 }
 
-std::vector<uint8_t> HoymilesHmDtu::GetInverterRadioAddress(const std::string & inverterSerialNumber)
+HoymilesHmDtu::buffer_type HoymilesHmDtu::GetInverterRadioAddress(const std::string & inverterSerialNumber)
 {
     if (inverterSerialNumber.length() != 12)
         throw Error(format("GetInverterRadioAddress: inverter serial number must have 12 digits ({})", inverterSerialNumber));
@@ -200,7 +248,7 @@ void HoymilesHmDtu::AssertCommunicationIsInitialized() const
     }
 }
 
-void HoymilesHmDtu::EscapeData(std::vector<uint8_t> & dest, const std::vector<uint8_t> & src)
+void HoymilesHmDtu::EscapeData(buffer_type & dest, const buffer_type & src)
 {
     dest.clear();
     dest.reserve(src.size() * 2);
@@ -236,7 +284,7 @@ void HoymilesHmDtu::EscapeData(std::vector<uint8_t> & dest, const std::vector<ui
     }
 }
 
-void HoymilesHmDtu::UnescapeData(std::vector<uint8_t> & dest, const std::vector<uint8_t> & src)
+void HoymilesHmDtu::UnescapeData(buffer_type & dest, const buffer_type & src)
 {
     dest.clear();
     dest.reserve(src.size());
@@ -276,7 +324,7 @@ void HoymilesHmDtu::UnescapeData(std::vector<uint8_t> & dest, const std::vector<
     }
 }
 
-uint8_t HoymilesHmDtu::CalculateCrc8(const std::vector<uint8_t> & data, size_t startPos, size_t endPos)
+uint8_t HoymilesHmDtu::CalculateCrc8(const buffer_type & data, size_t startPos, size_t endPos)
 {
     uint32_t crc = 0;
 
@@ -298,7 +346,7 @@ uint8_t HoymilesHmDtu::CalculateCrc8(const std::vector<uint8_t> & data, size_t s
     return static_cast<uint8_t>(crc);
 }
 
-uint16_t HoymilesHmDtu::CalculateCrc16(const std::vector<uint8_t> & data, size_t startPos, size_t endPos)
+uint16_t HoymilesHmDtu::CalculateCrc16(const buffer_type & data, size_t startPos, size_t endPos)
 {
     uint32_t crc = 0xFFFF;
 
@@ -323,7 +371,7 @@ uint16_t HoymilesHmDtu::CalculateCrc16(const std::vector<uint8_t> & data, size_t
     return static_cast<uint16_t>(crc);
 }
 
-bool HoymilesHmDtu::CheckPacketChecksum(const std::vector<uint8_t> & packet)
+bool HoymilesHmDtu::CheckPacketChecksum(const buffer_type & packet)
 {
     uint8_t checksum1 = CalculateCrc8(packet, 0, packet.size() - 1);
     uint8_t checksum2 = packet[packet.size() - 1];
@@ -371,8 +419,8 @@ void HoymilesHmDtu::TerminateCommunication()
     _radio.reset();
 }
 
-void HoymilesHmDtu::CreatePacketHeader(std::vector<uint8_t> & packetHeader, uint8_t command, const std::vector<uint8_t> & receiverAddr,
-    const std::vector<uint8_t> & senderAddr, uint8_t frame)
+void HoymilesHmDtu::CreatePacketHeader(buffer_type & packetHeader, uint8_t command, const buffer_type & receiverAddr,
+    const buffer_type & senderAddr, uint8_t frame)
 {
     if (receiverAddr.size() != 4)
         throw Error(format("Invalid length of receiver address: {}. (must be 4 bytes)", receiverAddr.size()));
@@ -391,7 +439,7 @@ void HoymilesHmDtu::CreatePacketHeader(std::vector<uint8_t> & packetHeader, uint
         throw Error(format("Internal error __CreatePacketHeader: size {} != 10", packetHeader.size()));
 }
 
-void HoymilesHmDtu::CreateRequestInfoPayload(std::vector<uint8_t> & payload, uint32_t currentTime)
+void HoymilesHmDtu::CreateRequestInfoPayload(buffer_type & payload, uint32_t currentTime)
 {
     size_t sz = payload.size();
 
@@ -418,47 +466,175 @@ void HoymilesHmDtu::CreateRequestInfoPayload(std::vector<uint8_t> & payload, uin
         throw Error(format("Internal error CreateRequestInfoPayload: size {} != 14", payload.size()));
 }
 
-void HoymilesHmDtu::CreateRequestInfoPacket(std::vector<uint8_t> & packet, const std::vector<uint8_t> & receiverAddr,
-    const std::vector<uint8_t> & senderAddr, uint32_t currentTime)
+void HoymilesHmDtu::CreateRequestInfoPacket(buffer_type & packet, const buffer_type & receiverAddr,
+    const buffer_type & senderAddr, uint32_t currentTime)
 {
     packet.clear();
     packet.reserve(MAX_PACKET_SIZE);
 
-    vector<uint8_t> tmp;
-    tmp.reserve(MAX_PACKET_SIZE);
+    vector<uint8_t> tmpPacket;
+    tmpPacket.reserve(MAX_PACKET_SIZE);
     
     // add the header
-    CreatePacketHeader(tmp, 0x15, receiverAddr, senderAddr, 0x80);
+    CreatePacketHeader(tmpPacket, 0x15, receiverAddr, senderAddr, 0x80);
 
     // add the payload
-    size_t payloadStartPos = tmp.size();
-    CreateRequestInfoPayload(tmp, currentTime);
+    size_t payloadStartPos = tmpPacket.size();
+    CreateRequestInfoPayload(tmpPacket, currentTime);
 
     // add the payload checksum
-    uint16_t payloadChecksum = CalculateCrc16(tmp, payloadStartPos, tmp.size());
-    UInt16ToBytes(tmp, payloadChecksum, true);
+    uint16_t payloadChecksum = CalculateCrc16(tmpPacket, payloadStartPos, tmpPacket.size());
+    UInt16ToBytes(tmpPacket, payloadChecksum, true);
 
     // add the packet checksum
-    uint8_t packetChecksum = CalculateCrc8(tmp, 0, tmp.size());
-    tmp.push_back(packetChecksum);
+    uint8_t packetChecksum = CalculateCrc8(tmpPacket, 0, tmpPacket.size());
+    tmpPacket.push_back(packetChecksum);
 
     // check the length
-    if (tmp.size() != 27)
+    if (tmpPacket.size() != 27)
         throw Error(format("Internal error CreateRequestInfoPacket: packet size {} != 27", packet.size()));
 
     // replace special characters
-    EscapeData(packet, tmp);
+    EscapeData(packet, tmpPacket);
 
     if (packet.size() > MAX_PACKET_SIZE)
         throw Error(format("Internal error CreateRequestInfoPacket: packet size {} > MAX_PACKET_SIZE {}", packet.size(), MAX_PACKET_SIZE));
 }
 
+void HoymilesHmDtu::SendRequestAndScanForResponses(std::vector <buffer_type> & responsePacketList,
+    int txChannel, const std::vector <int> & rxChannelList, const buffer_type & txPacket)
+{
+    responsePacketList.clear();
+
+    AssertCommunicationIsInitialized();
+
+    if (txPacket.size() > MAX_PACKET_SIZE)
+        throw Error(format("SendRequestAndScanForResponses: packet size {} > MAX_PACKET_SIZE {}", txPacket.size(), MAX_PACKET_SIZE));
+
+    uint32_t rxChannelIndex = 0;
+
+    buffer_type packet;
+    packet.reserve(MAX_PACKET_SIZE);
+
+    vector <buffer_type> tmpPacketList;
+    tmpPacketList.reserve(8);
+
+    // send request to the inverter
+    _radio->stopListening();
+    _radio->setChannel(txChannel);
+    _radio->flush_rx();
+
+    if (!_radio->write(&(txPacket[0]), (uint8_t)txPacket.size()))
+        throw Error("SendRequestAndScanForResponses: Can not send TX packet");
+    
+    // scan channels for response from the inverter
+    _radio->startListening();
+    
+    for (int retry = 0; retry < 100; retry++)
+    {
+        int rxChannel = rxChannelList[rxChannelIndex];
+
+        _radio->setChannel(rxChannel);
+
+        auto startTime = steady_clock::now();
+
+        while (duration_cast<milliseconds>(steady_clock::now() - startTime).count() <= RECEIVE_TIMEOUT_MS)
+        {
+            if (_radio->available())
+            {
+                // read packet data
+                uint8_t packetLen = _radio->getDynamicPayloadSize();
+
+                packet.resize(packetLen);
+                _radio->read(&(packet[0]), packetLen);
+
+                _radio->flush_rx();
+
+                // store raw packet data
+                tmpPacketList.push_back(packet);
+            }
+        }
+
+        rxChannelIndex++;
+        if (rxChannelIndex >= rxChannelList.size())
+            rxChannelIndex = 0;
+    }
+
+    // undo replace of special characters
+    for (const auto & item : tmpPacketList)
+    {
+        UnescapeData(packet, item);
+        responsePacketList.push_back(packet);
+    }
+}
+
+bool HoymilesHmDtu::EvaluateInverterInfoResponse(buffer_type & responseData, const std::vector<buffer_type> & responsePacketList,
+    const buffer_type & inverterRadioAddress, int inverterNumberOfChannels)
+{
+    responseData.clear();
+    int numberOfResponses = inverterNumberOfChannels + 1;
+
+    // did we get the right number of responses?
+    if ((int)responsePacketList.size() != numberOfResponses)
+        return false;
+
+    for (int idx = 0; idx < numberOfResponses; idx++)
+    {
+        const auto & response = responsePacketList[idx];
+
+        if (response.size() < 12)
+            return false;
+
+        // are the frame numbers valid?
+        int frameNumberResponse = response[9];
+        int frameNumberExpected = idx + 1;
+        if (frameNumberExpected == numberOfResponses) // is it the last frame?
+            frameNumberExpected |= 0x80;
+
+        if (frameNumberResponse != frameNumberExpected)
+            return false;
+
+        // are the receiver addresses valid?
+        if (!equal(inverterRadioAddress.begin(),  inverterRadioAddress.end(), response.begin() + 1))
+            return false;
+
+        if (!equal(inverterRadioAddress.begin(),  inverterRadioAddress.end(), response.begin() + 5))
+            return false;
+
+        // is the checksum valid?
+        if (!CheckPacketChecksum(response))
+            return false;
+        
+        // header is 10 bytes and last byte is the checksum
+        responseData.insert(responseData.end(), response.begin() + 10, response.end() - 1);
+    }
+
+    return true;
+}
+
+bool HoymilesHmDtu::ExtractInverterReadings(Readings & readings, const buffer_type & responseData, int numberOfChannels)
+{
+    // check the checksum
+    uint16_t crc1 = GetUInt16(responseData, responseData.size() - 2);
+    uint16_t crc2 = CalculateCrc16(responseData, 0, responseData.size() - 2);
+    if (crc1 != crc2)
+        return false;
+    
+    try
+    {
+        readings.ExtractReadings(numberOfChannels, responseData);
+    }
+    catch (const exception &)
+    {
+        return false;
+    }
+
+    return true;
+}
+
 bool HoymilesHmDtu::QueryInverterInfo(Readings & readings, int numberOfRetries, double waitBeforeRetry)
 {
-    readings.Clear(_inverterNumberOfChannels);
-
-    if (!_radio)
-        throw Error("Communication is not initialized!");
+    AssertCommunicationIsInitialized();
 
     _radio->flush_tx();
     _radio->flush_rx();
@@ -470,11 +646,13 @@ bool HoymilesHmDtu::QueryInverterInfo(Readings & readings, int numberOfRetries, 
     _radio->setPALevel(RADIO_POWER_LEVEL);
 
     vector <uint8_t> txPacket;
+    vector <buffer_type> responsePacketList;
+    buffer_type responseData;
 
     for (int retryIndex = 0; retryIndex < numberOfRetries; retryIndex++)
     {
         if (retryIndex > 0)
-            this_thread::sleep_for(chrono::milliseconds((int)(waitBeforeRetry * 1000.0)));
+            this_thread::sleep_for(milliseconds((int)(waitBeforeRetry * 1000.0)));
 
         // select a random channel for the request
         int txChannelIndex = _randomTxChannel(_randomEngine);
@@ -492,14 +670,16 @@ bool HoymilesHmDtu::QueryInverterInfo(Readings & readings, int numberOfRetries, 
         try
         {
             // send request and scan for responses
-            responseList = SendRequestAndScanForResponses(radio, txChannel, rxChannelList, txPacket)
+            SendRequestAndScanForResponses(responsePacketList, txChannel, rxChannelList->second, txPacket);
 
             // did we get a valid response?
-            success, responseData = EvaluateInverterInfoResponse(responseList, self.__inverterRadioAddress, self.__inverterNumberOfChannels)
-            if success:
-                success, info = ExtractInverterInfo(responseData, self.__inverterNumberOfChannels)
-                if success:
-                    return True, info
+            bool success = EvaluateInverterInfoResponse(responseData, responsePacketList, _inverterRadioAddress, _inverterNumberOfChannels);
+            if (success)
+            {
+                success = ExtractInverterReadings(readings, responseData, _inverterNumberOfChannels);
+                if (success)
+                    return true;
+            }
         }
         catch (const exception & exc)
         {

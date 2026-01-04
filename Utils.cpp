@@ -79,22 +79,22 @@ namespace Utils
 
     uint16_t GetUInt16(const std::vector<uint8_t> & data, int position)
     {
-        uint16_t n = data[position];
+        uint16_t n = data.at(position);
         n <<= 8;
-        n |= data[position + 1];
+        n |= data.at(position + 1);
 
         return n;
     }
 
     uint32_t GetUInt32(const std::vector<uint8_t> & data, int position)
     {
-        uint32_t n = data[position];
+        uint32_t n = data.at(position);
         n <<= 8;
-        n |= data[position + 1];
+        n |= data.at(position + 1);
         n <<= 8;
-        n |= data[position + 2];
+        n |= data.at(position + 2);
         n <<= 8;
-        n |= data[position + 3];
+        n |= data.at(position + 3);
 
         return n;
     }
