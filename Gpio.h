@@ -30,6 +30,7 @@ IN THE SOFTWARE.
 #include <vector>
 #include <stdexcept>
 #include <format>
+#include <memory>
 
 class Gpio
 {
@@ -57,33 +58,36 @@ public:
     virtual ~Gpio();
 
     /// @brief Configures the specified pin as input or output. Must be calles before using the pin.
-    /// @param pin The GPIO pin number to configure as output.
-    void InitializeGpioLine(int pin, GpioDirection direction);
+    /// @param pinNumber The GPIO pin number to configure as output.
+    /// @param direction Input or output direction.
+    void InitializeGpioLine(int pinNumber, GpioDirection direction);
 
     /// @brief Sets the level of the specified pin.
-    /// @param pin The GPIO pin number to set.
+    /// @param pinNumber The GPIO pin number to set.
     /// @param level The level to set (0 = low, 1 = high).
-    void SetPinLevel(int pin, int level);
+    void SetPinLevel(int pinNumber, int level);
 
     /// @brief Reads the level of the specified pin.
-    /// @param pin The GPIO pin number to read.
+    /// @param pinNumber The GPIO pin number to read.
     /// @return The level of the pin (0 = low, 1 = high).
-    int ReadPinLevel(int pin);
+    int ReadPinLevel(int pinNumber);
 
 private:
     std::string _applicationName;
-    gpiod_chip * _chip;
+    std::shared_ptr<gpiod_chip> _chip;
     int _numberOfLines;
-    std::vector <gpiod_line *> _gpioLines;
+    std::vector <std::shared_ptr<gpiod_line_request>> _gpioLines;
 
     /// @brief Checks if the specified pin number is valid.
-    /// @param pin The GPIO pin number to check.
-    void AssertPinIsValid(int pin);
+    /// @param pinNumber The GPIO pin number to check.
+    void AssertPinIsValid(int pinNumber);
 
-    /// @brief Gets the gpiod_line object for the specified pin and throws an error if the line is not configured.
-    /// @param pin The GPIO pin number.
-    /// @return The gpiod_line object for the specified pin.
-    gpiod_line * GetGpioLine(int pin);
+    /// @brief Request a line for exclusive usage as output line.
+    /// @param pinNumber The GPIO pin number.
+    /// @param direction Input or output direction.
+    /// @param consumer The application name.
+    /// @return The requested line.
+    std::shared_ptr<gpiod_line_request> RequestLine(unsigned int pinNumber, gpiod_line_direction direction, const std::string & consumer);
 };  
 
 
