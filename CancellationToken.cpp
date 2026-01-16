@@ -1,5 +1,3 @@
-#pragma once
-
 /*
 Copyright (C) 2025  Torsten Brischalle
 email: torsten@brischalle.de
@@ -24,44 +22,27 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 */
 
-#include <json-c/json.h>
-#include <string>
-#include <stdexcept>
-#include <format>
+#include "CancellationToken.h"
 
-/// @brief A class for handling JSON data.
-class Json
+using namespace std;
+
+CancellationToken::CancellationToken()
+: _cancel(false)
 {
-public:
+}
 
-    /// @brief JSON error.
-    class Error : public std::runtime_error
-    {
-    public:
-        Error(const std::string & errorMessage) : std::runtime_error(std::format("JSON error: {}", errorMessage)) { }
-    };
+bool CancellationToken::IsCancel() const
+{
+    return _cancel;
+}
 
-    /// @brief Constructor.
-    Json();
+void CancellationToken::Cancel()
+{
+    _cancel = true;
+}
 
-    Json(const Json &) = delete;
-    Json & operator=(const Json &) = delete;
-
-    /// @brief Destructor.
-    ~Json();
-
-    /// @brief Loads JSON data from a file.
-    /// @param filename The filename.
-    void LoadFromFile(const std::string & filename);
-
-    /// @brief Returns the root JSON object.
-    /// @return The root JSON object.
-    json_object * GetRootObject() const;
-
-private:
-    json_object *_jsonRoot;
-    
-    /// @brief Frees the JSON root object.
-    void FreeJsonRoot();
-};
+void CancellationToken::Reset()
+{
+    _cancel = false;
+}
 

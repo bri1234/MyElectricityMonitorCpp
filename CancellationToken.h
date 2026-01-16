@@ -24,44 +24,29 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 */
 
-#include <json-c/json.h>
-#include <string>
-#include <stdexcept>
-#include <format>
+#include <atomic>
 
-/// @brief A class for handling JSON data.
-class Json
+/// @brief Used to cancel something.
+class CancellationToken
 {
 public:
-
-    /// @brief JSON error.
-    class Error : public std::runtime_error
-    {
-    public:
-        Error(const std::string & errorMessage) : std::runtime_error(std::format("JSON error: {}", errorMessage)) { }
-    };
-
     /// @brief Constructor.
-    Json();
+    CancellationToken();
 
-    Json(const Json &) = delete;
-    Json & operator=(const Json &) = delete;
+    CancellationToken(const CancellationToken &) = delete;
+    CancellationToken & operator=(const CancellationToken &) = delete;
 
-    /// @brief Destructor.
-    ~Json();
+    /// @brief Check if cancellation is requested.
+    /// @return True if cancellation is requested.
+    bool IsCancel() const;
 
-    /// @brief Loads JSON data from a file.
-    /// @param filename The filename.
-    void LoadFromFile(const std::string & filename);
+    /// @brief Cancel.
+    void Cancel();
 
-    /// @brief Returns the root JSON object.
-    /// @return The root JSON object.
-    json_object * GetRootObject() const;
+    /// @brief Reset to "not cancel" state.
+    void Reset();
 
 private:
-    json_object *_jsonRoot;
-    
-    /// @brief Frees the JSON root object.
-    void FreeJsonRoot();
+    std::atomic<bool> _cancel;
 };
 

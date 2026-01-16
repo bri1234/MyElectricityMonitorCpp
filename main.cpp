@@ -31,6 +31,7 @@ IN THE SOFTWARE.
 #include "UnixUtils.h"
 #include "ElectricityMonitor.h"
 #include "Configuration.h"
+#include "CancellationToken.h"
 
 using namespace std;
 
@@ -57,6 +58,7 @@ int main(int argc, char **argv)
             configuration.Load(configurationFile);
 
             int retryCount = 0;
+            CancellationToken cancellationToken;
 
             while (true)
             {
@@ -67,7 +69,7 @@ int main(int argc, char **argv)
                     ElectricityMonitor electricityMonitor;
 
                     LOG_INFO("Start electricity monitor");
-                    electricityMonitor.Run(configuration);
+                    electricityMonitor.Run(configuration, cancellationToken);
                 }
                 catch(const exception& e)
                 {

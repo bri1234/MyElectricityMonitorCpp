@@ -96,8 +96,12 @@ public:
     /// @param serialPortName The name of the serial port (e.g. "/dev/ttyS0" on Linux).
     /// @param gpioSwitch The GPIO pin number used to switch between electricity meter 1 and 2 (default: 17).
     EbzDd3(const std::string & serialPortName, int gpioSwitch = 17);
+
     ~EbzDd3();
 
+    EbzDd3(const EbzDd3 &) = delete;
+    EbzDd3 & operator=(const EbzDd3 &) = delete;
+    
     /// @brief Opens the connection to the electricity meter.
     void Open();
 

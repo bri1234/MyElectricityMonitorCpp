@@ -50,6 +50,9 @@ public:
     /// @param numberOfInverterChannels Number of inverter channels = number of solar panels.
     Database(const std::string & fileName, int numberOfInverterChannels);
 
+    Database(const Database &) = delete;
+    Database & operator=(const Database &) = delete;
+    
     virtual ~Database();
 
     /// @brief Inserts the electricity meter readings into the database.

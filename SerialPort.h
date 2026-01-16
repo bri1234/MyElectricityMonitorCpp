@@ -53,6 +53,9 @@ public:
     /// @brief Constructor
     SerialPort();
 
+    SerialPort(const SerialPort &) = delete;
+    SerialPort & operator=(const SerialPort &) = delete;
+
     /// @brief Destructor
     ~SerialPort();
 

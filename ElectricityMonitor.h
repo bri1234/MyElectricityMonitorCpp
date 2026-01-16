@@ -25,6 +25,15 @@ IN THE SOFTWARE.
 */
 
 #include "Configuration.h"
+#include "CancellationToken.h"
+#include "Database.h"
+#include "EbzDd3.h"
+#include "HoymilesHmDtu.h"
+
+constexpr const int GPIO_PIN_SWITCH_ELECTRICITY_METER = 17;
+constexpr const int GPIO_PIN_HOYMILES_HM_DTU_CSN = 0;
+constexpr const int GPIO_PIN_HOYMILES_HM_DTU_CE = 24;
+
 
 /// @brief The main program logic for monitoring.
 class ElectricityMonitor
@@ -34,10 +43,21 @@ public:
     /// @brief Constructor.
     ElectricityMonitor();
 
+    ElectricityMonitor(const ElectricityMonitor &) = delete;
+    ElectricityMonitor & operator=(const ElectricityMonitor &) = delete;
+    
     /// @brief The main loop.
-    void Run(Configuration & configuration);
+    /// @param configuration The configuration.
+    /// @param cancellationToken Token to cancel the main loop.
+    void Run(Configuration & configuration, const CancellationToken & cancellationToken);
 
 private:
+
+    /// @brief Collect and stores the electricity and inverter data.
+    /// @param database The database to store the data.
+    /// @param electricityMeter The electricity meter to collect data.
+    /// @param hmDtu The hoymiles inverter to collect data.
+    void CollectAndStoreData(Database & database, EbzDd3 & electricityMeter, HoymilesHmDtu & hmDtu);
 
 };
 

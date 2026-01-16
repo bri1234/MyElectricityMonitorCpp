@@ -24,6 +24,7 @@ target_sources(MyElectricityMonitor
         Gpio.cpp
         SerialPort.cpp
         OnScopeExit.cpp
+        CancellationToken.cpp
         main.cpp
 )
 

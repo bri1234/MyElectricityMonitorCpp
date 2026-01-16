@@ -203,6 +203,9 @@ public:
     HoymilesHmDtu(const std::string & inverterSerialNumber, int pinCSn = 0, int pinCE = 24);
     virtual ~HoymilesHmDtu();
 
+    HoymilesHmDtu(const HoymilesHmDtu &) = delete;
+    HoymilesHmDtu & operator=(const HoymilesHmDtu &) = delete;
+    
     /// @brief Prints NRF24L01 module information on standard output.
     void PrintNrf24l01Info();
 

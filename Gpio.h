@@ -54,6 +54,9 @@ public:
     /// @param applicationName The name of the application using the GPIO library.
     Gpio(const std::string & applicationName);
 
+    Gpio(const Gpio & ) = delete;
+    Gpio & operator=(const Gpio & ) = delete;
+
     /// @brief Destructor. Cleans up the GPIO library.
     virtual ~Gpio();
 
