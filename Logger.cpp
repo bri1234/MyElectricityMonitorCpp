@@ -35,6 +35,7 @@ using namespace std;
 Logger::ptr_type Logger::_instance;
 
 Logger::Logger()
+: _logStream(nullptr)
 {
 
 }
@@ -83,26 +84,19 @@ void Logger::CloseLogFile()
     _logFile.reset();
 }
 
+void Logger::SetOutputStream(std::ostream & logStream)
+{
+    _logStream = &logStream;
+}
+
 void Logger::LogInfo(const std::string & fileName, int lineNumber, const std::string & message)
 {
-    if (!_logFile || !(*_logFile))
-    {
-        Log(cout, "INFO", fileName, lineNumber, message);
-        return;
-    }
-
-    Log(*_logFile, "INFO", fileName, lineNumber, message);
+    Log("INFO", fileName, lineNumber, message);
 }
 
 void Logger::LogError(const std::string & fileName, int lineNumber, const std::string & message)
 {
-    if (!_logFile || !(*_logFile))
-    {
-        Log(cerr, "ERROR", fileName, lineNumber, message);
-        return;
-    }
-
-    Log(*_logFile, "ERROR", fileName, lineNumber, message);
+    Log("ERROR", fileName, lineNumber, message);
 }
 
 void Logger::LogError(const std::string & fileName, int lineNumber, const std::exception & exc)
@@ -110,11 +104,17 @@ void Logger::LogError(const std::string & fileName, int lineNumber, const std::e
     LogError(fileName, lineNumber, exc.what());
 }
 
-void Logger::Log(std::ostream & os, const std::string & messageType, const std::string & fileName, int lineNumber, const std::string & message)
+void Logger::Log(const std::string & messageType, const std::string & fileName, int lineNumber, const std::string & message)
 {
-    LogCurrentTime(os);
-    os << " [" << filesystem::path(fileName).filename() << " line " << lineNumber << "] ";
-    os << messageType << ": " << message << endl;
+    ostream *os = (_logStream != nullptr) ? _logStream : _logFile.get();
+    
+    if (!os)
+        os = &cout;
+
+    LogCurrentTime(*os);
+    
+    *os << " [" << filesystem::path(fileName).filename() << " line " << lineNumber << "] ";
+    *os << messageType << ": " << message << endl;
 }
 
 void Logger::LogCurrentTime(std::ostream & os)

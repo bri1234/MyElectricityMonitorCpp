@@ -56,6 +56,10 @@ public:
     /// @brief Closes the log file.
     void CloseLogFile();
 
+    /// @brief Sets a new output stream.
+    /// @param logStream The new output stream.
+    void SetOutputStream(std::ostream & logStream);
+
     /// @brief Logs an information message.
     /// @param fileName The source code filename.
     /// @param lineNumber The source code line number.
@@ -78,14 +82,15 @@ private:
     static ptr_type _instance;
 
     ostream_ptr_type _logFile;
-
+    std::ostream *_logStream;
+    
     Logger();
 
     Logger(const Logger &) = delete;
     Logger & operator=(const Logger &) = delete;
 
     void LogCurrentTime(std::ostream & os);
-    void Log(std::ostream & os, const std::string & messageType, const std::string & fileName, int lineNumber, const std::string & message);
+    void Log(const std::string & messageType, const std::string & fileName, int lineNumber, const std::string & message);
 };
 
 #define LOG_INFO(MESSAGE) Logger::Instance().LogInfo(__FILE__, __LINE__, MESSAGE)

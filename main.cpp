@@ -45,8 +45,10 @@ int main(int argc, char **argv)
 
     try
     {
-        string logFile = Utils::CreateUnixLogFilepath("MyElectricityMonitor");
-        Logger::Instance().OpenLogFile(logFile);
+        // string logFile = Utils::CreateUnixLogFilepath("MyElectricityMonitor");
+        // Logger::Instance().OpenLogFile(logFile);
+
+        Logger::Instance().SetOutputStream(cout);
 
         LOG_INFO("********************************");
         LOG_INFO("*** PROGRAM STARTET          ***");
