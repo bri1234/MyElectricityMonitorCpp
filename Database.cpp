@@ -66,7 +66,7 @@ void Database::OpenDatabase(const std::string fileName)
     CloseDatabase();
 
     int resultCode = sqlite3_open(fileName.c_str(), &_database);
-    CheckResult(resultCode, "Can not open database");
+    CheckResult(resultCode, format("Can not open database {}", fileName));
 }
 
 void Database::CloseDatabase()

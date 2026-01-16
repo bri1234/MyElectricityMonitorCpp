@@ -35,6 +35,8 @@ IN THE SOFTWARE.
 
 using namespace std;
 
+constexpr int RESTART_DELAY = 30;
+
 int main(int argc, char **argv)
 {
     string configurationFile;
@@ -93,7 +95,9 @@ int main(int argc, char **argv)
                     retryCount = 0;
                 }
 
-                this_thread::sleep_for(chrono::seconds(30));
+                LOG_INFO(format("try to restart in {} seconds", RESTART_DELAY));
+
+                this_thread::sleep_for(chrono::seconds(RESTART_DELAY));
             }
         }
         catch(const exception & exc)
