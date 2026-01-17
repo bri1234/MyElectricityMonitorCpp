@@ -30,6 +30,7 @@ IN THE SOFTWARE.
 #include <stdexcept>
 #include <thread>
 #include <chrono>
+#include <iostream>
 
 using namespace std;
 
@@ -45,10 +46,11 @@ constexpr static const string ID_POWER_L1   = string("\x01\x00\x24\x07\x00\xFF",
 constexpr static const string ID_POWER_L2   = string("\x01\x00\x38\x07\x00\xFF", 6);
 constexpr static const string ID_POWER_L3   = string("\x01\x00\x4C\x07\x00\xFF", 6);
 
-EbzDd3::EbzDd3(const std::string & serialPortName, int gpioSwitch)
+EbzDd3::EbzDd3(const std::string & serialPortName, int gpioPinSwitch)
 : _serialPortName(serialPortName)
-, _gpioSwitch(gpioSwitch)
+, _gpioSwitch(gpioPinSwitch)
 , _gpio("EbzDd3")
+, _isOpen(false)
 {
 
 }
@@ -74,16 +76,21 @@ void EbzDd3::Open()
     
     _gpio.InitializeGpioLine(_gpioSwitch, Gpio::GD_OUTPUT);
 
+    _isOpen = true;
+
     SelectChannel(0);
 }
 
 void EbzDd3::Close()
 {
+    _isOpen = false;
     _serialPort.ClosePort();
 }
 
 void EbzDd3::SelectChannel(int channelNum)
 {
+    AssertIsOpen();
+
     switch (channelNum)
     {
     case 0:
@@ -105,6 +112,7 @@ void EbzDd3::ReadBlock(const SerialPort & serialPort, std::vector <uint8_t> & da
 {
     data.clear();
 
+    char buffer[8];
     auto tm = steady_clock::now();
 
     // extra timeout for the first byte?
@@ -114,7 +122,8 @@ void EbzDd3::ReadBlock(const SerialPort & serialPort, std::vector <uint8_t> & da
         {
             try
             {
-                serialPort.ReadData(data, 1, true);
+                serialPort.ReadData(buffer, 1, true);
+                data.push_back(buffer[0]);
 
                 // first byte received
                 break;
@@ -133,10 +142,15 @@ void EbzDd3::ReadBlock(const SerialPort & serialPort, std::vector <uint8_t> & da
     {
         try
         {
-            serialPort.ReadData(data, 1, true);
+            serialPort.ReadData(buffer, 1, true);
+            data.push_back(buffer[0]);
+
             tm = steady_clock::now();
         }
-        catch(const SerialPort::Timeout &) { }
+        catch(const SerialPort::Timeout &)
+        {
+            // ignore
+        }
     }
 }
 
@@ -157,7 +171,6 @@ void EbzDd3::ReceiveInfoData(std::vector <uint8_t> & data, int channelNum)
 bool EbzDd3::ExtractInfoFromDataSet(const SmlData & dataSet, Readings & readings)
 {
     const std::string & id = dataSet.GetListItem(0).GetString();
-    double value = dataSet.GetListItem(5).GetUnsigned();
 
     // +A: Active energy, grid supplies to customer.
     // -A: Active energy, customer supplies to grid
@@ -165,6 +178,7 @@ bool EbzDd3::ExtractInfoFromDataSet(const SmlData & dataSet, Readings & readings
     if (id == ID_PLUS_A)
     {
         // meter reading +A, tariff-free in kWh
+        double value = dataSet.GetListItem(5).GetUnsigned();
         readings.PlusA = value / 1E8;
         return true;
     }
@@ -172,6 +186,7 @@ bool EbzDd3::ExtractInfoFromDataSet(const SmlData & dataSet, Readings & readings
     if (id == ID_PLUS_A_T1)
     {
         // meter reading +A, tariff 1 in kWh
+        double value = dataSet.GetListItem(5).GetUnsigned();
         readings.PlusA_T1 = value / 1E8;
         return true;
     }
@@ -179,6 +194,7 @@ bool EbzDd3::ExtractInfoFromDataSet(const SmlData & dataSet, Readings & readings
     if (id == ID_PLUS_A_T2)
     {
         // meter reading +A, tariff 2 in kWh
+        double value = dataSet.GetListItem(5).GetUnsigned();
         readings.PlusA_T2 = value / 1E8;
         return true;
     }
@@ -186,6 +202,7 @@ bool EbzDd3::ExtractInfoFromDataSet(const SmlData & dataSet, Readings & readings
     if (id == ID_MINUS_A)
     {
         // meter reading -A, tariff-free in kWh
+        double value = dataSet.GetListItem(5).GetUnsigned();
         readings.MinusA = value / 1E8;
         return true;
     }
@@ -193,6 +210,7 @@ bool EbzDd3::ExtractInfoFromDataSet(const SmlData & dataSet, Readings & readings
     if (id == ID_POWER)
     {
         // Sum of instantaneous power in all phases in W
+        double value = dataSet.GetListItem(5).GetInteger();
         readings.Power = value / 1E2;
         return true;
     }
@@ -200,6 +218,7 @@ bool EbzDd3::ExtractInfoFromDataSet(const SmlData & dataSet, Readings & readings
     if (id == ID_POWER_L1)
     {
         // Instantaneous power phase L1 in W
+        double value = dataSet.GetListItem(5).GetInteger();
         readings.PowerL1 = value / 1E2;
         return true;
     }
@@ -207,6 +226,7 @@ bool EbzDd3::ExtractInfoFromDataSet(const SmlData & dataSet, Readings & readings
     if (id == ID_POWER_L2)
     {
         // Instantaneous power phase L2 in W
+        double value = dataSet.GetListItem(5).GetInteger();
         readings.PowerL2 = value / 1E2;
         return true;
     }
@@ -214,6 +234,7 @@ bool EbzDd3::ExtractInfoFromDataSet(const SmlData & dataSet, Readings & readings
     if (id == ID_POWER_L3)
     {
         // Instantaneous power phase L3 in W
+        double value = dataSet.GetListItem(5).GetInteger();
         readings.PowerL3 = value / 1E2;
         return true;
     }
@@ -229,6 +250,8 @@ void EbzDd3::ExtractInfoFromData(const std::vector<uint8_t> & data, Readings & r
     const SmlData & message = messageList.at(1);
     const SmlData & dataSetList = message.GetListItem(3).GetListItem(1).GetListItem(4);
 
+    // message.PrintValue(cout);
+
     for (const auto & dataSet : dataSetList.GetList())
     {
         ExtractInfoFromDataSet(dataSet, readings);
@@ -237,6 +260,8 @@ void EbzDd3::ExtractInfoFromData(const std::vector<uint8_t> & data, Readings & r
 
 bool EbzDd3::ReceiveInfo(int channelNum, Readings & readings)
 {
+    AssertIsOpen();
+    
     readings.Clear();
 
     try
@@ -246,8 +271,9 @@ bool EbzDd3::ReceiveInfo(int channelNum, Readings & readings)
         ReceiveInfoData(data, channelNum);
         if (data.size() == 0)
             return false;
-        
+
         ExtractInfoFromData(data, readings);
+
         return true;
     }
     catch (const exception & exc)
@@ -255,6 +281,12 @@ bool EbzDd3::ReceiveInfo(int channelNum, Readings & readings)
         LOG_ERROR(exc);
         return false;
     }
+}
+
+void EbzDd3::AssertIsOpen()
+{
+    if (!_isOpen)
+        throw Error("electricity meter connection is not open!");
 }
 
 void EbzDd3::Readings::Clear()
@@ -280,3 +312,4 @@ void EbzDd3::Readings::Print(std::ostream & os)
     os << "P L2  = " << PowerL2 << " " << UnitPowerL2 << endl;
     os << "P L3  = " << PowerL3 << " " << UnitPowerL3 << endl;
 }
+

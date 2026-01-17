@@ -106,19 +106,26 @@ void Logger::LogError(const std::string & fileName, int lineNumber, const std::e
 
 void Logger::Log(const std::string & messageType, const std::string & fileName, int lineNumber, const std::string & message)
 {
-    ostream *os = (_logStream != nullptr) ? _logStream : _logFile.get();
-    
-    if (!os)
-        os = &cout;
+    ostream & os = GetLogStream();
 
-    LogCurrentTime(*os);
+    LogCurrentTime(os);
     
-    *os << " [" << filesystem::path(fileName).filename() << " line " << lineNumber << "] ";
-    *os << messageType << ": " << message << endl;
+    os << " [" << filesystem::path(fileName).filename() << " line " << lineNumber << "] ";
+    os << messageType << ": " << message << endl;
 }
 
 void Logger::LogCurrentTime(std::ostream & os)
 {
     os << format("{:%Y-%m-%d %H:%M:%S}", chrono::system_clock::now());
+}
+
+std::ostream & Logger::GetLogStream() const
+{
+    ostream * os = (_logStream != nullptr) ? _logStream : _logFile.get();
+    
+    if (!os)
+        os = &cout;
+
+    return *os;
 }
 

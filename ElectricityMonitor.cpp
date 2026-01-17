@@ -47,7 +47,10 @@ void ElectricityMonitor::Run(Configuration & configuration, const CancellationTo
     EbzDd3 electricityMeter(configuration.GetElectricityMeterSerialPort(), GPIO_PIN_SWITCH_ELECTRICITY_METER);
     HoymilesHmDtu hmDut(configuration.GetInverterSerialNumber(), GPIO_PIN_HOYMILES_HM_DTU_CSN, GPIO_PIN_HOYMILES_HM_DTU_CE);
 
+    electricityMeter.Open();
+    
     hmDut.InitializeCommunication();
+    LOG_INFO(hmDut.PrintNrf24l01Info());
 
     for (size_t cycleCounter = 1; !cancellationToken.IsCancel(); cycleCounter++)
     {

@@ -172,10 +172,14 @@ HoymilesHmDtu::~HoymilesHmDtu()
     }
 }
 
-void HoymilesHmDtu::PrintNrf24l01Info()
+std::string HoymilesHmDtu::PrintNrf24l01Info()
 {
     AssertCommunicationIsInitialized();
-    _radio->printPrettyDetails();
+
+    vector <char> buffer(1024, '\0');
+    _radio->sprintfPrettyDetails(&(buffer[0]));
+
+    return string(&(buffer[0]));
 }
 
 HoymilesHmDtu::buffer_type HoymilesHmDtu::GenerateDtuRadioAddress()

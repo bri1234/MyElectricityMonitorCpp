@@ -207,7 +207,8 @@ public:
     HoymilesHmDtu & operator=(const HoymilesHmDtu &) = delete;
     
     /// @brief Prints NRF24L01 module information on standard output.
-    void PrintNrf24l01Info();
+    /// @return The info string.
+    std::string PrintNrf24l01Info();
 
     /// @brief Initializes the communication.
     void InitializeCommunication();

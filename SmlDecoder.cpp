@@ -27,6 +27,7 @@ IN THE SOFTWARE.
 #include <format>
 #include <stdexcept>
 #include <algorithm>
+#include <cctype>
 
 using namespace std;
 
@@ -204,7 +205,15 @@ void SmlData::PrintValue(std::ostream & os, int indent) const
         break;
     
     case DT_STRING:
-        os << "String (" << _string.length() << "): " << _string << endl;
+        os << "String (" << _string.length() << "): ";
+        for (char c : _string)
+        {
+            if (isprint(c))
+                os << c;
+            else
+                os << format("[{:02X}]", c);
+        }
+        os << endl;
         break;
     
     case DT_BOOL:

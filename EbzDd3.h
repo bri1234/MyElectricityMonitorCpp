@@ -94,8 +94,8 @@ public:
 
     /// @brief Constructor
     /// @param serialPortName The name of the serial port (e.g. "/dev/ttyS0" on Linux).
-    /// @param gpioSwitch The GPIO pin number used to switch between electricity meter 1 and 2 (default: 17).
-    EbzDd3(const std::string & serialPortName, int gpioSwitch = 17);
+    /// @param gpioPinSwitch The GPIO pin number used to switch between electricity meter 1 and 2 (default: 17).
+    EbzDd3(const std::string & serialPortName, int gpioPinSwitch = 17);
 
     ~EbzDd3();
 
@@ -125,6 +125,8 @@ private:
     SerialPort _serialPort;
     Gpio _gpio;
 
+    bool _isOpen;
+    
     /// @brief Reads a data block from the serial port with specified timeouts.
     /// @param serialPort The serial port to read from.
     /// @param data The data buffer to store the read data.
@@ -147,5 +149,8 @@ private:
     /// @param readings Where to store the reading.
     /// @return True if a known reading was found-
     static bool ExtractInfoFromDataSet(const SmlData & dataSet, Readings & readings);
+
+    /// @brief Ensures that the electricity meter connection is open.
+    void AssertIsOpen();
 };
 

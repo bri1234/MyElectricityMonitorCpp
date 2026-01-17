@@ -78,6 +78,10 @@ public:
     /// @param exc The error message.
     void LogError(const std::string & fileName, int lineNumber, const std::exception & exc);
 
+    /// @brief Returns the log stream.
+    /// @return The log stream.
+    std::ostream & GetLogStream() const;
+
 private:
     static ptr_type _instance;
 
