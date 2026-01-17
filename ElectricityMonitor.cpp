@@ -48,7 +48,7 @@ void ElectricityMonitor::Run(Configuration & configuration, const CancellationTo
     HoymilesHmDtu hmDut(configuration.GetInverterSerialNumber(), GPIO_PIN_HOYMILES_HM_DTU_CSN, GPIO_PIN_HOYMILES_HM_DTU_CE);
 
     electricityMeter.Open();
-    
+
     hmDut.InitializeCommunication();
     LOG_INFO(hmDut.PrintNrf24l01Info());
 
@@ -73,21 +73,24 @@ void ElectricityMonitor::Run(Configuration & configuration, const CancellationTo
 void ElectricityMonitor::CollectAndStoreData(Database & database, EbzDd3 & electricityMeter, HoymilesHmDtu & hmDtu)
 {
     EbzDd3::Readings electricityMeterReadings;
+    Database::readings_type databaseReadings;
 
     bool success = electricityMeter.ReceiveInfo(0, electricityMeterReadings);
     if (success)
     {
-        electricityMeterReadings.Print(cout);
-        // database.InsertReadingsElectricityMeter(0, electricityMeterReadings);
+        // electricityMeterReadings.Print(cout);
+        electricityMeterReadings.GetReadings(databaseReadings);
+        database.InsertReadingsElectricityMeter(0, databaseReadings);
     }
 
+    electricityMeterReadings.Clear();
     success = electricityMeter.ReceiveInfo(1, electricityMeterReadings);
     if (success)
     {
-        electricityMeterReadings.Print(cout);
-        // database.InsertReadingsElectricityMeter(1, electricityMeterReadings);
+        // electricityMeterReadings.Print(cout);
+        electricityMeterReadings.GetReadings(databaseReadings);
+        database.InsertReadingsElectricityMeter(1, databaseReadings);
     }
 
     (void)hmDtu;
-    (void)database;
 }

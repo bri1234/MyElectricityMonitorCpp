@@ -313,3 +313,16 @@ void EbzDd3::Readings::Print(std::ostream & os)
     os << "P L3  = " << PowerL3 << " " << UnitPowerL3 << endl;
 }
 
+void EbzDd3::Readings::GetReadings(std::map <std::string, double> & readings)
+{
+    readings.clear();
+
+    readings["+A"] = PlusA;
+    readings["+A T1"] = PlusA_T1;
+    readings["+A T2"] = PlusA_T2;
+    readings["-A"] = MinusA;
+    readings["P"] = Power;
+    readings["P L1"] = PowerL1;
+    readings["P L2"] = PowerL2;
+    readings["P L3"] = PowerL3;
+}

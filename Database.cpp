@@ -146,10 +146,10 @@ void Database::InsertReadingsElectricityMeter(int electricityMeterNum, const rea
         os << ",";
 
         auto it = readings.find(key);
-        if (it != readings.end())
-            os << it->second;
-        else
-            os << 0.0;
+        if (it == readings.end())
+            throw Error(format("did not find key {} in readings from electricity meter number {}", key, electricityMeterNum));
+
+        os << it->second;
     }
 
     os << ");";

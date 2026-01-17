@@ -83,6 +83,10 @@ public:
         /// @brief Prints the readings.
         /// @param os The stream where the readings shall be printed.
         void Print(std::ostream & os);
+
+        /// @brief Returns the readings as a dictionary.
+        /// @param readings The readings dictionary.
+        void GetReadings(std::map <std::string, double> & readings);
     };
 
     /// @brief EbzDd3 error.
