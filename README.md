@@ -43,6 +43,28 @@ GPIO 17 is used to switch between two electricity meters.
 Connection from Raspberry PI pin 22 to nRF24L01+ IRQ pin 8 is not necessary!
 nRF24L01+ CE pin 3 can be connected to an other Raspberry PI GPIO pin.
 
+## Rapsberry PI enable UART for electricity meters
+
+```bash
+sudo raspi-config
+```
+
+"Interface Options" -> "Serial Port"
+
+"Would you like a login shell to be accessible over serial?" -> "NO"
+
+"Would you like the serial port hardware to be enabled?" -> "YES"
+
+## Raspberry PI enable SPI for nRF24L01+
+
+```bash
+sudo raspi-config
+```
+
+"Interface Options" -> "SPI"
+
+"Would you like the SPI interface to be enabled?" -> "YES"
+
 # Additional software libraries
 
 ## Raspberry PI library SQLite
@@ -85,27 +107,27 @@ sudo make install
 
 # Software
 
-## Rapsberry PI enable UART for electricity meters
+## How to compile the electricity monitor
 
+Clone the repository:
 ```bash
-sudo raspi-config
+git clone https://github.com/bri1234/MyElectricityMonitorCpp.git
 ```
 
-"Interface Options" -> "Serial Port"
-
-"Would you like a login shell to be accessible over serial?" -> "NO"
-
-"Would you like the serial port hardware to be enabled?" -> "YES"
-
-## Raspberry PI enable SPI for nRF24L01+
-
+Build the application:
 ```bash
-sudo raspi-config
+cd MyElectricityMonitorCpp
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make
+sudo make install
 ```
 
-"Interface Options" -> "SPI"
-
-"Would you like the SPI interface to be enabled?" -> "YES"
+If you want a debug version, use this:
+```bash
+cmake -DCMAKE_BUILD_TYPE=Debug ..
+```
 
 ## Start the application automatically after boot: CRON job
 

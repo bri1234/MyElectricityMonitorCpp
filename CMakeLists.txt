@@ -30,8 +30,8 @@ target_sources(MyElectricityMonitor
 
 target_compile_options(MyElectricityMonitor
     PRIVATE
-        # -O2
-        -g -O0
+        $<$<CONFIG:DEBUG>: -g -O0 >
+        $<$<CONFIG:RELEASE>: -O2 >
         -fdiagnostics-color=always
         -Wall -Wextra -Wpedantic -Werror)
 

@@ -291,7 +291,7 @@ void HoymilesHmDtu::EscapeData(buffer_type & dest, const buffer_type & src)
 void HoymilesHmDtu::UnescapeData(buffer_type & dest, const buffer_type & src)
 {
     dest.clear();
-    dest.reserve(src.size());
+    dest.reserve(src.size() + 16);
 
     for (size_t idx = 0; idx < src.size(); idx++)
     {
@@ -459,7 +459,7 @@ void HoymilesHmDtu::CreateRequestInfoPayload(buffer_type & payload, uint32_t cur
     payload.push_back(0x00);
     payload.push_back(0x00);
 
-    payload[9] = 0x05;
+    payload.push_back(0x05);
     
     payload.push_back(0x00);
     payload.push_back(0x00);
@@ -506,7 +506,8 @@ void HoymilesHmDtu::CreateRequestInfoPacket(buffer_type & packet, const buffer_t
 }
 
 void HoymilesHmDtu::SendRequestAndScanForResponses(std::vector <buffer_type> & responsePacketList,
-    int txChannel, const std::vector <int> & rxChannelList, const buffer_type & txPacket)
+    int txChannel, const std::vector <int> & rxChannelList, const buffer_type & txPacket,
+    int scanTimePerRxChannelMs)
 {
     responsePacketList.clear();
 
@@ -520,34 +521,35 @@ void HoymilesHmDtu::SendRequestAndScanForResponses(std::vector <buffer_type> & r
     buffer_type packet;
     packet.reserve(MAX_PACKET_SIZE);
 
-    vector <buffer_type> tmpPacketList;
-    tmpPacketList.reserve(8);
-
     // send request to the inverter
     _radio->stopListening();
     _radio->setChannel(txChannel);
     _radio->flush_rx();
 
-    if (!_radio->write(&(txPacket[0]), (uint8_t)txPacket.size()))
-        throw Error("SendRequestAndScanForResponses: Can not send TX packet");
+    _radio->write(&(txPacket[0]), (uint8_t)txPacket.size());
     
     // scan channels for response from the inverter
     _radio->startListening();
     
-    for (int retry = 0; retry < 100; retry++)
+    auto startTime1 = steady_clock::now();
+    while (duration_cast<milliseconds>(steady_clock::now() - startTime1).count() <= 1000)
     {
         int rxChannel = rxChannelList[rxChannelIndex];
+        rxChannelIndex++;
+        if (rxChannelIndex >= rxChannelList.size())
+            rxChannelIndex = 0;
 
         _radio->setChannel(rxChannel);
 
-        auto startTime = steady_clock::now();
-
-        while (duration_cast<milliseconds>(steady_clock::now() - startTime).count() <= RECEIVE_TIMEOUT_MS)
+        auto startTime2 = steady_clock::now();
+        while (duration_cast<milliseconds>(steady_clock::now() - startTime2).count() <= scanTimePerRxChannelMs)
         {
             if (_radio->available())
             {
                 // read packet data
                 uint8_t packetLen = _radio->getDynamicPayloadSize();
+
+                // cout << "~~~ radio available rx channel " << rxChannel << " packet len " << (int)packetLen << endl;
 
                 packet.resize(packetLen);
                 _radio->read(&(packet[0]), packetLen);
@@ -555,20 +557,9 @@ void HoymilesHmDtu::SendRequestAndScanForResponses(std::vector <buffer_type> & r
                 _radio->flush_rx();
 
                 // store raw packet data
-                tmpPacketList.push_back(packet);
+                responsePacketList.push_back(packet);
             }
         }
-
-        rxChannelIndex++;
-        if (rxChannelIndex >= rxChannelList.size())
-            rxChannelIndex = 0;
-    }
-
-    // undo replace of special characters
-    for (const auto & item : tmpPacketList)
-    {
-        UnescapeData(packet, item);
-        responsePacketList.push_back(packet);
     }
 }
 
@@ -649,8 +640,8 @@ bool HoymilesHmDtu::QueryInverterInfo(Readings & readings, int numberOfRetries, 
     // increase power level
     _radio->setPALevel(RADIO_POWER_LEVEL);
 
-    vector <uint8_t> txPacket;
-    vector <buffer_type> responsePacketList;
+    vector <uint8_t> txPacket, unescapedPacket;
+    vector <buffer_type> responsePacketList, unescapedPacketList;
     buffer_type responseData;
 
     for (int retryIndex = 0; retryIndex < numberOfRetries; retryIndex++)
@@ -658,6 +649,11 @@ bool HoymilesHmDtu::QueryInverterInfo(Readings & readings, int numberOfRetries, 
         if (retryIndex > 0)
             this_thread::sleep_for(milliseconds((int)(waitBeforeRetry * 1000.0)));
 
+        // create packet to send to the inverter
+        uint32_t tm = static_cast<uint32_t>(duration_cast<seconds>(system_clock::now().time_since_epoch()).count());
+
+        CreateRequestInfoPacket(txPacket, _inverterRadioAddress, _dtuRadioAddress, tm);
+        
         // select a random channel for the request
         int txChannelIndex = _randomTxChannel(_randomEngine);
         int txChannel = TX_CHANNELS.at(txChannelIndex);
@@ -666,18 +662,22 @@ bool HoymilesHmDtu::QueryInverterInfo(Readings & readings, int numberOfRetries, 
         if (rxChannelList == RX_CHANNEL_LISTS.end())
             throw Error(format("Internal error: no RX channels for tx channel {}", txChannel));
 
-        // create packet to send to the inverter
-        uint32_t tm = static_cast<uint32_t>(duration_cast<seconds>(system_clock::now().time_since_epoch()).count());
-
-        CreateRequestInfoPacket(txPacket, _inverterRadioAddress, _dtuRadioAddress, tm);
-        
         try
         {
+            const int scanTimePerRxChannelMs = 5;
+
             // send request and scan for responses
-            SendRequestAndScanForResponses(responsePacketList, txChannel, rxChannelList->second, txPacket);
+            SendRequestAndScanForResponses(responsePacketList, txChannel, rxChannelList->second, txPacket, scanTimePerRxChannelMs);
+
+            // undo replace of special characters
+            for (const auto & responsePacket : responsePacketList)
+            {
+                UnescapeData(unescapedPacket, responsePacket);
+                unescapedPacketList.push_back(unescapedPacket);
+            }
 
             // did we get a valid response?
-            bool success = EvaluateInverterInfoResponse(responseData, responsePacketList, _inverterRadioAddress, _inverterNumberOfChannels);
+            bool success = EvaluateInverterInfoResponse(responseData, unescapedPacketList, _inverterRadioAddress, _inverterNumberOfChannels);
             if (success)
             {
                 success = ExtractInverterReadings(readings, responseData, _inverterNumberOfChannels);
@@ -693,5 +693,80 @@ bool HoymilesHmDtu::QueryInverterInfo(Readings & readings, int numberOfRetries, 
     }
 
     return false;
+}
+
+void HoymilesHmDtu::TestInverterCommunication()
+{
+    AssertCommunicationIsInitialized();
+
+    _radio->flush_tx();
+    _radio->flush_rx();
+
+    // set power level to minimum at the end of the function
+    OnScopeExit onScopeExit( [&] { _radio->setPALevel(RF24_PA_MIN); } );
+
+    // increase power level
+    _radio->setPALevel(RADIO_POWER_LEVEL);
+
+    vector <uint8_t> txPacket;
+    vector <buffer_type> responsePacketList;
+    buffer_type responseData;
+
+    // create packet to send to the inverter
+    uint32_t tm = static_cast<uint32_t>(duration_cast<seconds>(system_clock::now().time_since_epoch()).count());
+
+    CreateRequestInfoPacket(txPacket, _inverterRadioAddress, _dtuRadioAddress, tm);
+    
+    try
+    {
+        for (int txChannel : TX_CHANNELS)
+        {
+            // *** select a TX channel for the request from channels: 3, 23, 40, 61, 75 ***
+            // int txChannel = 3;
+
+            cout << "***** Using TX channel: " << txChannel << " *****" << endl;
+
+            auto rxChannelList = RX_CHANNEL_LISTS.find(txChannel);
+            if (rxChannelList == RX_CHANNEL_LISTS.end())
+                throw Error(format("Internal error: no RX channels for tx channel {}", txChannel));
+
+            for (int waitTimePerRxChannelScanMs = 1; waitTimePerRxChannelScanMs < 10; waitTimePerRxChannelScanMs++)
+            {
+                vector <size_t> rxPacketsCounts;
+                
+                cout << "test wait time " << waitTimePerRxChannelScanMs << " ms: " << flush;
+
+                for (int retries = 0; retries < 20; retries++)
+                {
+                    SendRequestAndScanForResponses(responsePacketList, txChannel, rxChannelList->second, txPacket, waitTimePerRxChannelScanMs);
+                    rxPacketsCounts.push_back(responsePacketList.size());
+                }
+
+                double sum = 0.0;
+                int count1 = 0;
+                int count2 = 0;
+                int count3 = 0;
+
+                for (auto packetCount : rxPacketsCounts)
+                {
+                    sum += packetCount;
+                    if (packetCount == 1)
+                        count1++;
+                    if (packetCount == 2)
+                        count2++;
+                    if (packetCount == 3)
+                        count3++;
+                }
+                double avg = sum / rxPacketsCounts.size();
+
+                cout << "Avg rx packets count: " << avg << " Rcv #1: " << count1 << " Rcv #2: " << count2 << " Rcv #3: " << count3 << endl;
+            }
+        }
+    }
+    catch (const exception & exc)
+    {
+        // not successful, try again
+        LOG_ERROR(exc);
+    }       
 }
 

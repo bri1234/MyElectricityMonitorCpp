@@ -52,27 +52,31 @@ void ElectricityMonitor::Run(Configuration & configuration, const CancellationTo
     hmDut.InitializeCommunication();
     LOG_INFO(hmDut.PrintNrf24l01Info());
 
-    for (size_t cycleCounter = 1; !cancellationToken.IsCancel(); cycleCounter++)
-    {
-        auto startTime = steady_clock::now();
+    hmDut.TestInverterCommunication();
+    (void)cancellationToken;
+    
+    // for (size_t cycleCounter = 1; !cancellationToken.IsCancel(); cycleCounter++)
+    // {
+    //     auto startTime = steady_clock::now();
 
-        CollectAndStoreData(database, electricityMeter, hmDut);
+    //     CollectAndStoreData(database, electricityMeter, hmDut);
 
-        double tm = duration<double>(steady_clock::now() - startTime).count();
-        double delayTime = configuration.GetDataAcquisitionPeriod() - tm;
-        if (delayTime < 5.0)
-            delayTime = 5.0;
+    //     double tm = duration<double>(steady_clock::now() - startTime).count();
+    //     double delayTime = configuration.GetDataAcquisitionPeriod() - tm;
+    //     if (delayTime < 5.0)
+    //         delayTime = 5.0;
 
-        if (cycleCounter % 20 == 0)
-            LOG_INFO(format("Electricity monitor is running, cycle {}", cycleCounter));
+    //     if (cycleCounter % 20 == 0)
+    //         LOG_INFO(format("Electricity monitor is running, cycle {}", cycleCounter));
 
-        this_thread::sleep_for(seconds((int)delayTime));
-    }
+    //     this_thread::sleep_for(seconds((int)delayTime));
+    // }
 }
 
 void ElectricityMonitor::CollectAndStoreData(Database & database, EbzDd3 & electricityMeter, HoymilesHmDtu & hmDtu)
 {
     EbzDd3::Readings electricityMeterReadings;
+    HoymilesHmDtu::Readings hmDtuReadings;
     Database::readings_type databaseReadings;
 
     bool success = electricityMeter.ReceiveInfo(0, electricityMeterReadings);
@@ -92,5 +96,9 @@ void ElectricityMonitor::CollectAndStoreData(Database & database, EbzDd3 & elect
         database.InsertReadingsElectricityMeter(1, databaseReadings);
     }
 
-    (void)hmDtu;
+    success = hmDtu.QueryInverterInfo(hmDtuReadings, 50);
+    if (success)
+    {
+
+    }
 }

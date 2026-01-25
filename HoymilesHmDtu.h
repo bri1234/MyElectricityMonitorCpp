@@ -39,6 +39,9 @@ class HoymilesHmDtu
 public:
     typedef std::vector <uint8_t> buffer_type;
     
+    // the power level to send the request to the receiver
+    rf24_pa_dbm_e RADIO_POWER_LEVEL = RF24_PA_LOW;
+
     /// @brief Hoymiles HM DTU error.
     class Error : public std::runtime_error
     {
@@ -223,18 +226,15 @@ public:
     /// @return Success (true or false)
     bool QueryInverterInfo(Readings & readings, int numberOfRetries = 20, double waitBeforeRetry = 1.0);
 
+    /// @brief Tests the inverter communication.
+    void TestInverterCommunication();
+
 private:
     // the nRF24L01 receive pipeline
     constexpr static int RX_PIPE_NUM = 1;
 
-    // timeout (in ms) for channel scan
-    constexpr static int RECEIVE_TIMEOUT_MS = 5;
-
     // the SPI communication frequency (in Hz)
     constexpr static int SPI_FREQUENCY_HZ = 1000000;
-
-    // the power level to send the request to the receiver
-    constexpr static rf24_pa_dbm_e RADIO_POWER_LEVEL = RF24_PA_MAX;
 
     // maximum size of packets that can be sent with the nRF24L01 module
     constexpr static int MAX_PACKET_SIZE = 32;
@@ -336,8 +336,10 @@ private:
     /// @param txChannel The channel where the request shall be sent.
     /// @param rxChannelList The channel list to scan for responses.
     /// @param txPacket The request packet that shall be sent.
+    /// @param scanTimePerRxChannelMs Duration to scan per receive channel in milliseconds.
     void SendRequestAndScanForResponses(std::vector <buffer_type> & responsePacketList,
-        int txChannel, const std::vector <int> & rxChannelList, const buffer_type & txPacket);
+        int txChannel, const std::vector <int> & rxChannelList, const buffer_type & txPacket,
+        int scanTimePerRxChannelMs);
     
     /// @brief Checks if the responses are valid and returns the assembled data.
     /// @param responseData The assembled response data.
