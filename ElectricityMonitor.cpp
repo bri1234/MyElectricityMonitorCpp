@@ -29,6 +29,7 @@ IN THE SOFTWARE.
 #include <chrono>
 #include <thread>
 #include <iostream>
+#include <cstdlib>
 
 using std::chrono::steady_clock;
 using std::chrono::duration;
@@ -55,6 +56,7 @@ void ElectricityMonitor::Run(Configuration & configuration, const CancellationTo
     hmDut.TestInverterCommunication();
     (void)cancellationToken;
     
+    exit(0);
     // for (size_t cycleCounter = 1; !cancellationToken.IsCancel(); cycleCounter++)
     // {
     //     auto startTime = steady_clock::now();

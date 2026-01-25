@@ -94,6 +94,11 @@ void Logger::LogInfo(const std::string & fileName, int lineNumber, const std::st
     Log("INFO", fileName, lineNumber, message);
 }
 
+void Logger::LogWarn(const std::string & fileName, int lineNumber, const std::string & message)
+{
+    Log("WARN", fileName, lineNumber, message);
+}
+
 void Logger::LogError(const std::string & fileName, int lineNumber, const std::string & message)
 {
     Log("ERROR", fileName, lineNumber, message);

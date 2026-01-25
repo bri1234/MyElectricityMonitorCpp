@@ -338,8 +338,7 @@ private:
     /// @param txPacket The request packet that shall be sent.
     /// @param scanTimePerRxChannelMs Duration to scan per receive channel in milliseconds.
     void SendRequestAndScanForResponses(std::vector <buffer_type> & responsePacketList,
-        int txChannel, const std::vector <int> & rxChannelList, const buffer_type & txPacket,
-        int scanTimePerRxChannelMs);
+        int txChannel, const std::vector <int> & rxChannelList, const buffer_type & txPacket);
     
     /// @brief Checks if the responses are valid and returns the assembled data.
     /// @param responseData The assembled response data.
@@ -357,5 +356,10 @@ private:
     /// @param numberOfChannels Number of inverter channels.
     /// @return True if successfull
     static bool ExtractInverterReadings(Readings & readings, const buffer_type & responseData, int numberOfChannels);
+
+    /// @brief Unescapes a list of packets.
+    /// @param dest The destination list with unescaped packets.
+    /// @param src The source list with escaped packets.
+    static void UnescapedPacketList(std::vector <buffer_type> & dest, const std::vector <buffer_type> & src);
 };
 

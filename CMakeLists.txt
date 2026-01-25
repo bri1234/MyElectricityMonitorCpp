@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
+message(STATUS "~~~~~ Build type: ${CMAKE_BUILD_TYPE} ~~~~~")
+
 project(MyElectricityMonitorProject
     VERSION 1.0
     LANGUAGES CXX)
@@ -7,7 +9,13 @@ project(MyElectricityMonitorProject
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+add_custom_target(print_build_type
+    COMMAND ${CMAKE_COMMAND} -E echo "~~~~~ Build type: ${CMAKE_BUILD_TYPE} ~~~~~"
+)
+
 add_executable(MyElectricityMonitor)
+
+add_dependencies(MyElectricityMonitor print_build_type)
 
 target_sources(MyElectricityMonitor
     PRIVATE

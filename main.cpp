@@ -25,6 +25,7 @@ IN THE SOFTWARE.
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <sys/resource.h>
 
 #include "Logger.h"
 #include "Database.h"
@@ -37,6 +38,21 @@ using namespace std;
 
 constexpr int RESTART_DELAY = 30;
 
+/// @brief Changes the process priority.
+/// @param newPriority The new priority. (lower value means higher priority)
+void ChangeProcessPriority(int newPriority)
+{
+    int result = setpriority(PRIO_PROCESS, 0, newPriority);
+    if (result != 0)
+    {
+        LOG_WARN(format("ChangeProcessPriority: setpriority failed with error code {}", errno));
+    }
+}
+
+/// @brief The main entry point of the program.
+/// @param argc The number of command line arguments.
+/// @param argv The command line arguments.
+/// @return The exit code.
 int main(int argc, char **argv)
 {
     string configurationFile;
@@ -58,6 +74,9 @@ int main(int argc, char **argv)
 
         try
         {
+            // elevate process priority if possible
+            ChangeProcessPriority(-10);
+
             Configuration configuration;
             configuration.Load(configurationFile);
 
