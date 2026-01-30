@@ -27,6 +27,7 @@ IN THE SOFTWARE.
 #include "Utils.h"
 #include "OnScopeExit.h"
 #include "Logger.h"
+#include "ValueChangeDump.h"
 
 #include <unistd.h>
 #include <iostream>
@@ -527,7 +528,8 @@ void HoymilesHmDtu::SendRequestAndScanForResponses(std::vector <buffer_type> & r
     _radio->flush_tx();
 
     _radio->setChannel(txChannel);
-     this_thread::sleep_for(microseconds(150));
+    _radio->getChannel();
+     this_thread::sleep_for(microseconds(200));
 
     _radio->write(&(txPacket[0]), (uint8_t)txPacket.size());
     
@@ -735,7 +737,7 @@ bool HoymilesHmDtu::QueryInverterInfo(Readings & readings, int numberOfRetries, 
     return false;
 }
 
-void HoymilesHmDtu::TestInverterCommunication()
+void HoymilesHmDtu::TestInverterCommunication1()
 {
     AssertCommunicationIsInitialized();
 
@@ -825,5 +827,68 @@ void HoymilesHmDtu::TestInverterCommunication()
         // not successful, try again
         LOG_ERROR(exc);
     }       
+}
+
+void HoymilesHmDtu::TestInverterCommunication2()
+{
+    AssertCommunicationIsInitialized();
+
+    // set power level to minimum at the end of the function
+    OnScopeExit onScopeExit( [&] { _radio->setPALevel(RF24_PA_MIN); } );
+
+    // increase power level
+    _radio->setPALevel(RF24_PA_LOW);
+
+    // create packet to send to the inverter
+    uint32_t tm = static_cast<uint32_t>(duration_cast<seconds>(system_clock::now().time_since_epoch()).count());
+    vector <uint8_t> txPacket;
+    CreateRequestInfoPacket(txPacket, _inverterRadioAddress, _dtuRadioAddress, tm);
+    
+    if (txPacket.size() > MAX_PACKET_SIZE)
+        throw Error(format("TestCommunication2: packet size {} > MAX_PACKET_SIZE {}", txPacket.size(), MAX_PACKET_SIZE));
+
+    
+    int txChannel = TX_CHANNELS.at(0);
+    auto rxChannelList = RX_CHANNEL_LISTS.find(txChannel);
+    if (rxChannelList == RX_CHANNEL_LISTS.end())
+        throw Error(format("Internal error: no RX channels for tx channel {}", txChannel));
+
+    // send request to the inverter
+    _radio->stopListening();
+
+    _radio->flush_rx();
+    _radio->flush_tx();
+
+    _radio->setChannel(txChannel);
+    _radio->getChannel();
+
+    _radio->write(&(txPacket[0]), (uint8_t)txPacket.size());
+    
+    // scan channels for response from the inverter
+    _radio->startListening();
+
+    auto startTime = steady_clock::now();
+    auto endTime = startTime + milliseconds(1000);
+    size_t rxChannelIndex = 0;
+
+    while (steady_clock::now() < endTime)
+    {
+        int rxChannel = rxChannelList->second[rxChannelIndex];
+        rxChannelIndex++;
+        if (rxChannelIndex >= rxChannelList->second.size())
+            rxChannelIndex = 0;
+
+        // set new receive channel
+        _radio->setChannel(rxChannel);
+
+        // wait until the channel is set
+        _radio->getChannel();
+
+        // test signal
+        if (_radio->testRPD())
+        {
+
+        }
+    }
 }
 

@@ -46,14 +46,14 @@ void ElectricityMonitor::Run(Configuration & configuration, const CancellationTo
 {
     Database database(configuration.GetDatabaseFilepath(), configuration.GetInverterNumberOfChannels());
     EbzDd3 electricityMeter(configuration.GetElectricityMeterSerialPort(), GPIO_PIN_SWITCH_ELECTRICITY_METER);
-    HoymilesHmDtu hmDut(configuration.GetInverterSerialNumber(), GPIO_PIN_HOYMILES_HM_DTU_CSN, GPIO_PIN_HOYMILES_HM_DTU_CE);
+    HoymilesHmDtu hmDtu(configuration.GetInverterSerialNumber(), GPIO_PIN_HOYMILES_HM_DTU_CSN, GPIO_PIN_HOYMILES_HM_DTU_CE);
 
     electricityMeter.Open();
 
-    hmDut.InitializeCommunication();
-    LOG_INFO(hmDut.PrintNrf24l01Info());
+    hmDtu.InitializeCommunication();
+    LOG_INFO(hmDtu.PrintNrf24l01Info());
 
-    hmDut.TestInverterCommunication();
+    hmDtu.TestInverterCommunication1();
     (void)cancellationToken;
     
     exit(0);
@@ -61,7 +61,7 @@ void ElectricityMonitor::Run(Configuration & configuration, const CancellationTo
     // {
     //     auto startTime = steady_clock::now();
 
-    //     CollectAndStoreData(database, electricityMeter, hmDut);
+    //     CollectAndStoreData(database, electricityMeter, hmDtu);
 
     //     double tm = duration<double>(steady_clock::now() - startTime).count();
     //     double delayTime = configuration.GetDataAcquisitionPeriod() - tm;

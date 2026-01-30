@@ -227,7 +227,10 @@ public:
     bool QueryInverterInfo(Readings & readings, int numberOfRetries = 20, double waitBeforeRetry = 1.0);
 
     /// @brief Tests the inverter communication.
-    void TestInverterCommunication();
+    void TestInverterCommunication1();
+
+    /// @brief Tests the inverter communication.
+    void TestInverterCommunication2();
 
 private:
     // the nRF24L01 receive pipeline

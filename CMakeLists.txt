@@ -33,6 +33,7 @@ target_sources(MyElectricityMonitor
         SerialPort.cpp
         OnScopeExit.cpp
         CancellationToken.cpp
+        ValueChangeDump.cpp
         main.cpp
 )
 

@@ -89,10 +89,20 @@ int main(int argc, char **argv)
 
                 try
                 {
-                    ElectricityMonitor electricityMonitor;
+                    // ElectricityMonitor electricityMonitor;
 
-                    LOG_INFO("Start electricity monitor");
-                    electricityMonitor.Run(configuration, cancellationToken);
+                    // LOG_INFO("Start electricity monitor");
+                    // electricityMonitor.Run(configuration, cancellationToken);
+
+                    HoymilesHmDtu hmDtu(configuration.GetInverterSerialNumber(),
+                        GPIO_PIN_HOYMILES_HM_DTU_CSN, GPIO_PIN_HOYMILES_HM_DTU_CE);
+
+                    hmDtu.InitializeCommunication();
+                    LOG_INFO(hmDtu.PrintNrf24l01Info());
+
+                    LOG_INFO("Start inverter communication test");
+                    hmDtu.TestInverterCommunication2();
+                    LOG_INFO("Inverter communication test finished");
                 }
                 catch(const exception& e)
                 {
