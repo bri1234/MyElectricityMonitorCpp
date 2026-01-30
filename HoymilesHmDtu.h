@@ -42,6 +42,12 @@ public:
     // the power level to send the request to the receiver
     rf24_pa_dbm_e RADIO_POWER_LEVEL = RF24_PA_LOW;
 
+    // list of channels where the inverter is listening for requests
+    static const std::vector <int> TX_CHANNELS;
+
+    // list of channels where the inverter sends the responses depending on the channel, where the request was received
+    static const std::map <int, std::vector <int>> RX_CHANNEL_LISTS;
+
     /// @brief Hoymiles HM DTU error.
     class Error : public std::runtime_error
     {
@@ -230,7 +236,8 @@ public:
     void TestInverterCommunication1();
 
     /// @brief Tests the inverter communication.
-    void TestInverterCommunication2();
+    /// @param txChannel The TX channel to use for the test.
+    void TestInverterCommunication2(int txChannel);
 
 private:
     // the nRF24L01 receive pipeline
@@ -241,12 +248,6 @@ private:
 
     // maximum size of packets that can be sent with the nRF24L01 module
     constexpr static int MAX_PACKET_SIZE = 32;
-
-    // list of channels where the inverter is listening for requests
-    static const std::vector <int> TX_CHANNELS;
-
-    // list of channels where the inverter sends the responses depending on the channel, where the request was received
-    static const std::map <int, std::vector <int>> RX_CHANNEL_LISTS;
 
     std::shared_ptr<RF24> _radio;
 

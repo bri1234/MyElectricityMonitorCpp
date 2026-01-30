@@ -32,6 +32,11 @@ ValueChangeDump::ValueChangeDump()
 {
 }
 
+ValueChangeDump::~ValueChangeDump()
+{
+    CloseFile();
+}
+
 unsigned int ValueChangeDump::DefineVariable(const std::string & name, const std::string & typeStr,
     unsigned int bitWidth, unsigned int initialValue)
 {

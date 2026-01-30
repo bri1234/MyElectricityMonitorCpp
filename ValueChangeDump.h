@@ -45,6 +45,7 @@ public:
 
     /// @brief Creates a new value change dump file.
     ValueChangeDump();
+    ~ValueChangeDump();
     
     /// @brief Defines a variable in the value change dump file.
     /// @param name The variable name.

@@ -829,7 +829,7 @@ void HoymilesHmDtu::TestInverterCommunication1()
     }       
 }
 
-void HoymilesHmDtu::TestInverterCommunication2()
+void HoymilesHmDtu::TestInverterCommunication2(int txChannel)
 {
     AssertCommunicationIsInitialized();
 
@@ -847,11 +847,19 @@ void HoymilesHmDtu::TestInverterCommunication2()
     if (txPacket.size() > MAX_PACKET_SIZE)
         throw Error(format("TestCommunication2: packet size {} > MAX_PACKET_SIZE {}", txPacket.size(), MAX_PACKET_SIZE));
 
-    
-    int txChannel = TX_CHANNELS.at(0);
     auto rxChannelList = RX_CHANNEL_LISTS.find(txChannel);
     if (rxChannelList == RX_CHANNEL_LISTS.end())
         throw Error(format("Internal error: no RX channels for tx channel {}", txChannel));
+
+    // value change dump file to log RPD test results
+    ValueChangeDump vcd;
+
+    for (int rxChannel : rxChannelList->second)
+    {
+        vcd.DefineVariable(format("RX_Channel_{}", rxChannel), "wire", 1, 0);
+    }
+    
+    vcd.OpenFile(format("rpd_test_tx_channel_{}.vcd", txChannel), "1us", "1.0", "RPD test results");
 
     // send request to the inverter
     _radio->stopListening();
@@ -869,26 +877,29 @@ void HoymilesHmDtu::TestInverterCommunication2()
 
     auto startTime = steady_clock::now();
     auto endTime = startTime + milliseconds(1000);
-    size_t rxChannelIndex = 0;
 
     while (steady_clock::now() < endTime)
     {
-        int rxChannel = rxChannelList->second[rxChannelIndex];
-        rxChannelIndex++;
-        if (rxChannelIndex >= rxChannelList->second.size())
-            rxChannelIndex = 0;
+        auto timestamp = duration_cast<microseconds>(steady_clock::now() - startTime).count();
+        vcd.BeginLog(timestamp);
 
-        // set new receive channel
-        _radio->setChannel(rxChannel);
-
-        // wait until the channel is set
-        _radio->getChannel();
-
-        // test signal
-        if (_radio->testRPD())
+        for (unsigned int rxChannelIdx = 0; rxChannelIdx < rxChannelList->second.size(); rxChannelIdx++)
         {
+            int rxChannel = rxChannelList->second[rxChannelIdx];
 
+            // set new receive channel
+            _radio->setChannel(rxChannel);
+
+            // wait until the channel is set
+            _radio->getChannel();
+
+            // test signal
+            bool rpd = _radio->testRPD();
+
+            vcd.LogVariableValue(rxChannelIdx, rpd ? 1 : 0);
         }
     }
+
+    vcd.CloseFile();
 }
 

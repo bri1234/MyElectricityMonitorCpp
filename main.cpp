@@ -101,7 +101,13 @@ int main(int argc, char **argv)
                     LOG_INFO(hmDtu.PrintNrf24l01Info());
 
                     LOG_INFO("Start inverter communication test");
-                    hmDtu.TestInverterCommunication2();
+
+                    for (int txChannel : HoymilesHmDtu::TX_CHANNELS)
+                    {
+                        LOG_INFO(format("Testing with TX channel {}", txChannel));
+                        hmDtu.TestInverterCommunication2(txChannel);
+                    }
+
                     LOG_INFO("Inverter communication test finished");
                 }
                 catch(const exception& e)
