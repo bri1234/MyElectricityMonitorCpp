@@ -102,11 +102,7 @@ int main(int argc, char **argv)
 
                     LOG_INFO("Start inverter communication test");
 
-                    for (int txChannel : HoymilesHmDtu::TX_CHANNELS)
-                    {
-                        LOG_INFO(format("Testing with TX channel {}", txChannel));
-                        hmDtu.TestInverterCommunication2(txChannel);
-                    }
+                    hmDtu.TestInverterCommunication2();
 
                     LOG_INFO("Inverter communication test finished");
                 }

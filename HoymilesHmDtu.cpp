@@ -506,6 +506,12 @@ void HoymilesHmDtu::CreateRequestInfoPacket(buffer_type & packet, const buffer_t
         throw Error(format("Internal error CreateRequestInfoPacket: packet size {} > MAX_PACKET_SIZE {}", packet.size(), MAX_PACKET_SIZE));
 }
 
+void HoymilesHmDtu::CreateRequestInfoPacket(buffer_type & packet) const
+{
+    uint32_t tm = static_cast<uint32_t>(duration_cast<seconds>(system_clock::now().time_since_epoch()).count());
+    CreateRequestInfoPacket(packet, _inverterRadioAddress, _dtuRadioAddress, tm);
+}
+
 void HoymilesHmDtu::SendRequestAndScanForResponses(std::vector <buffer_type> & responsePacketList,
     int txChannel, const std::vector <int> & rxChannelList, const buffer_type & txPacket)
 {
@@ -698,9 +704,7 @@ bool HoymilesHmDtu::QueryInverterInfo(Readings & readings, int numberOfRetries, 
             this_thread::sleep_for(milliseconds((int)(waitBeforeRetry * 1000.0)));
 
         // create packet to send to the inverter
-        uint32_t tm = static_cast<uint32_t>(duration_cast<seconds>(system_clock::now().time_since_epoch()).count());
-
-        CreateRequestInfoPacket(txPacket, _inverterRadioAddress, _dtuRadioAddress, tm);
+        CreateRequestInfoPacket(txPacket);
         
         // select a random channel for the request
         int txChannelIndex = _randomTxChannel(_randomEngine);
@@ -755,9 +759,7 @@ void HoymilesHmDtu::TestInverterCommunication1()
     buffer_type responseData;
 
     // create packet to send to the inverter
-    uint32_t tm = static_cast<uint32_t>(duration_cast<seconds>(system_clock::now().time_since_epoch()).count());
-
-    CreateRequestInfoPacket(txPacket, _inverterRadioAddress, _dtuRadioAddress, tm);
+    CreateRequestInfoPacket(txPacket);
     
     try
     {
@@ -829,7 +831,7 @@ void HoymilesHmDtu::TestInverterCommunication1()
     }       
 }
 
-void HoymilesHmDtu::TestInverterCommunication2(int txChannel)
+void HoymilesHmDtu::TestInverterCommunication2()
 {
     AssertCommunicationIsInitialized();
 
@@ -839,64 +841,79 @@ void HoymilesHmDtu::TestInverterCommunication2(int txChannel)
     // increase power level
     _radio->setPALevel(RF24_PA_LOW);
 
-    // create packet to send to the inverter
-    uint32_t tm = static_cast<uint32_t>(duration_cast<seconds>(system_clock::now().time_since_epoch()).count());
-    vector <uint8_t> txPacket;
-    CreateRequestInfoPacket(txPacket, _inverterRadioAddress, _dtuRadioAddress, tm);
-    
-    if (txPacket.size() > MAX_PACKET_SIZE)
-        throw Error(format("TestCommunication2: packet size {} > MAX_PACKET_SIZE {}", txPacket.size(), MAX_PACKET_SIZE));
-
-    auto rxChannelList = RX_CHANNEL_LISTS.find(txChannel);
-    if (rxChannelList == RX_CHANNEL_LISTS.end())
-        throw Error(format("Internal error: no RX channels for tx channel {}", txChannel));
-
     // value change dump file to log RPD test results
     ValueChangeDump vcd;
+    map <int, int> txChannelToVcdIndex, rxChannelToVcdIndex;
 
-    for (int rxChannel : rxChannelList->second)
+    for (int channel : TX_CHANNELS)
     {
-        vcd.DefineVariable(format("RX_Channel_{}", rxChannel), "wire", 1, 0);
+        txChannelToVcdIndex[channel] = vcd.DefineVariable(format("TX_Ch{}", channel), "wire", 1, 0);
+        rxChannelToVcdIndex[channel] = vcd.DefineVariable(format("RX_Ch{}", channel), "wire", 1, 0);
     }
     
-    vcd.OpenFile(format("rpd_test_tx_channel_{}.vcd", txChannel), "1us", "1.0", "RPD test results");
+    vcd.OpenFile("rpd_test.vcd", "1us", "1.0", "RPD test results");
+    vcd.StartTheStopwatch();
 
-    // send request to the inverter
-    _radio->stopListening();
+    vector <uint8_t> txPacket;
 
-    _radio->flush_rx();
-    _radio->flush_tx();
-
-    _radio->setChannel(txChannel);
-    _radio->getChannel();
-
-    _radio->write(&(txPacket[0]), (uint8_t)txPacket.size());
-    
-    // scan channels for response from the inverter
-    _radio->startListening();
-
-    auto startTime = steady_clock::now();
-    auto endTime = startTime + milliseconds(1000);
-
-    while (steady_clock::now() < endTime)
+    for (int runs = 0; runs < 10; runs++)
     {
-        auto timestamp = duration_cast<microseconds>(steady_clock::now() - startTime).count();
-        vcd.BeginLog(timestamp);
+        LOG_INFO(format("***** Run {} *****", runs + 1));
 
-        for (unsigned int rxChannelIdx = 0; rxChannelIdx < rxChannelList->second.size(); rxChannelIdx++)
+        for (int txChannel : TX_CHANNELS)
         {
-            int rxChannel = rxChannelList->second[rxChannelIdx];
+            auto rxChannelList = RX_CHANNEL_LISTS.find(txChannel);
+            if (rxChannelList == RX_CHANNEL_LISTS.end())
+                throw Error(format("Internal error: no RX channels for tx channel {}", txChannel));
 
-            // set new receive channel
-            _radio->setChannel(rxChannel);
+            LOG_INFO(format("Testing TX channel {}", txChannel));
 
-            // wait until the channel is set
+            // set new transmit channel
+            _radio->setChannel(txChannel);
             _radio->getChannel();
 
-            // test signal
-            bool rpd = _radio->testRPD();
+            for (int tries = 0; tries < 10; tries++)
+            {
+                // create packet to send to the inverter
+                CreateRequestInfoPacket(txPacket);
 
-            vcd.LogVariableValue(rxChannelIdx, rpd ? 1 : 0);
+                // send request to the inverter
+                _radio->stopListening();
+
+                _radio->flush_rx();
+                _radio->flush_tx();
+
+                vcd.LogVariableValue(txChannelToVcdIndex[txChannel], 1);
+
+                //_radio->write(&(txPacket[0]), (uint8_t)txPacket.size());
+                this_thread::sleep_for(milliseconds(1));
+
+                vcd.LogVariableValue(txChannelToVcdIndex[txChannel], 0);
+                
+                // scan channels for response from the inverter
+                _radio->startListening();
+
+                auto endTime = high_resolution_clock::now() + milliseconds(250);
+
+                while (high_resolution_clock::now() < endTime)
+                {
+                    for (int rxChannel : rxChannelList->second)
+                    {
+                        // set new receive channel
+                        _radio->setChannel(rxChannel);
+                        _radio->getChannel();
+
+                        // test signal
+                        for (int i = 0; i < 20; i++)
+                        {
+                            bool rpd = _radio->testRPD();
+                            vcd.LogVariableValue(rxChannelToVcdIndex[rxChannel], rpd ? 1 : 0);
+                        }
+                    }
+                }
+
+                this_thread::sleep_for(milliseconds(250));
+            }
         }
     }
 

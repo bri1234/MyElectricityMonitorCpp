@@ -29,6 +29,7 @@ IN THE SOFTWARE.
 #include <string>
 #include <format>
 #include <vector>
+#include <chrono>
 
 /// @brief Class for creating value change dump files. (see https://en.wikipedia.org/wiki/Value_change_dump)
 ///        Use "GTKWave" to view the created value change dump files.
@@ -61,25 +62,27 @@ public:
 
     /// @brief Opens a value change dump file.
     /// @param fileName The file name.
-    /// @param timescaleStr The timescale string. (e.g. 10us, time number = 1 | 10 | 100, time unit = s | ms | us | ns | ps | fs)
     /// @param dateStr The date string.
     /// @param versionStr The version string.
     /// @param comment Additional comment.
-    void OpenFile(const std::string & fileName, const std::string & timescaleStr,
-        const std::string & versionStr = "", const std::string & comment = "",
-        const std::string & dateStr = "");
+    void OpenFile(const std::string & fileName,const std::string & versionStr = "",
+        const std::string & comment = "", const std::string & dateStr = "");
 
     /// @brief Closes the value change dump file.
     void CloseFile();
     
-    /// @brief Begins a log entry with the given timestamp. Call this function at every time step before logging variable values.
-    /// @param timestamp The timestamp in time units specified by the timescale.
-    void BeginLog(unsigned int timestamp);
+    /// @brief Starts the stopwatch used for timestamps.
+    void StartTheStopwatch();
 
     /// @brief Logs the value of a variable.
     /// @param variableIndex The variable index.
     /// @param value The variable value.
     void LogVariableValue(unsigned int variableIndex, unsigned int value);
+
+    /// @brief Logs the values of multiple variables.
+    /// @param variableIndices The variable indices.
+    /// @param values The variable values.
+    void LogVariableValue(const std::vector <unsigned int> & variableIndices, const std::vector <unsigned int> & values);
 
 private:
     class Variable
@@ -106,8 +109,7 @@ private:
 
     Variable::list_type _variableList;
     
-    bool _newLogEntry = false;
-    unsigned int _currentLogTimestamp = 0;
+    std::chrono::high_resolution_clock::time_point _stopwatchStartTime;
 
     /// @brief Writes the file header.
     /// @param timescaleStr The timescale string. (e.g. 1s, 10ms, ...)

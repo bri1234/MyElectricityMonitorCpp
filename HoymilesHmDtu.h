@@ -236,8 +236,7 @@ public:
     void TestInverterCommunication1();
 
     /// @brief Tests the inverter communication.
-    /// @param txChannel The TX channel to use for the test.
-    void TestInverterCommunication2(int txChannel);
+    void TestInverterCommunication2();
 
 private:
     // the nRF24L01 receive pipeline
@@ -334,6 +333,10 @@ private:
     /// @param currentTime The current time in seconds since the start of the epoch.
     static void CreateRequestInfoPacket(buffer_type & packet,
         const buffer_type & receiverAddr, const buffer_type & senderAddr, uint32_t currentTime);
+
+    /// @brief Creates the packet that can be sent to the inverter to request information.
+    /// @param packet The created packet to be sent to the inverter. (This function clears the buffer first.)
+    void CreateRequestInfoPacket(buffer_type & packet) const;
     
     /// @brief Send a request to the inverter and scan receive channels for the response.
     /// @param responsePacketList List of reponse packets.

@@ -24,9 +24,8 @@ IN THE SOFTWARE.
 
 #include "ValueChangeDump.h"
 
-#include <chrono>
-
 using namespace std;
+using namespace std::chrono;
 
 ValueChangeDump::ValueChangeDump()
 {
@@ -88,7 +87,7 @@ void ValueChangeDump::CloseFile()
     }
 }
 
-void ValueChangeDump::OpenFile(const std::string & fileName, const std::string & timescaleStr,
+void ValueChangeDump::OpenFile(const std::string & fileName,
     const std::string & versionStr, const std::string & comment, const std::string & dateStr)
 {
     if (_outputFile.is_open())
@@ -98,7 +97,9 @@ void ValueChangeDump::OpenFile(const std::string & fileName, const std::string &
     if (!_outputFile.is_open())
         throw Error("Cannot open file " + fileName);
 
-    WriteFileHeader(timescaleStr, versionStr, comment, dateStr);
+    WriteFileHeader("1us", versionStr, comment, dateStr);
+
+    _stopwatchStartTime = high_resolution_clock::now();
 }
 
 void ValueChangeDump::WriteFileHeader(const std::string & timescaleStr,
@@ -109,7 +110,7 @@ void ValueChangeDump::WriteFileHeader(const std::string & timescaleStr,
     if (!dateStr.empty())
         _outputFile << dateStr;
     else
-        _outputFile << chrono::system_clock::now();
+        _outputFile << system_clock::now();
 
     _outputFile << endl << "$end" << endl;
 
@@ -136,15 +137,11 @@ void ValueChangeDump::WriteFileHeader(const std::string & timescaleStr,
         variable.WriteVariableValue(_outputFile);
     }
     _outputFile << "$end" << endl;
-
-    _newLogEntry = false;
-    _currentLogTimestamp = 0;
 }
 
-void ValueChangeDump::BeginLog(unsigned int timestamp)
+void ValueChangeDump::StartTheStopwatch()
 {
-    _newLogEntry = true;
-    _currentLogTimestamp = timestamp;
+    _stopwatchStartTime = high_resolution_clock::now();
 }
 
 void ValueChangeDump::LogVariableValue(unsigned int variableIndex, unsigned int value)
@@ -152,19 +149,43 @@ void ValueChangeDump::LogVariableValue(unsigned int variableIndex, unsigned int 
     if (variableIndex >= _variableList.size())
         throw Error("LogVariableValue: invalid variable index " + to_string(variableIndex));
 
+    auto timestamp = duration_cast<microseconds>(high_resolution_clock::now() - _stopwatchStartTime).count();
+    _outputFile << "#" << timestamp << endl;
+
     Variable & var = _variableList.at(variableIndex);
 
     if (value == var.CurrentValue)
         return;
 
-    if (_newLogEntry)
-    {
-        _outputFile << "#" << _currentLogTimestamp << endl;
-        _newLogEntry = false;
-    }
-
     var.CurrentValue = value;
     var.WriteVariableValue(_outputFile);
+}
+
+void ValueChangeDump::LogVariableValue(const std::vector <unsigned int> & variableIndices,
+    const std::vector <unsigned int> & values)
+{
+    if (variableIndices.size() != values.size())
+        throw Error("LogVariableValue: variableIndices size does not match values size.");
+
+    auto timestamp = duration_cast<microseconds>(high_resolution_clock::now() - _stopwatchStartTime).count();
+    _outputFile << "#" << timestamp << endl;
+
+    for (size_t i = 0; i < variableIndices.size(); i++)
+    {
+        unsigned int variableIndex = variableIndices.at(i);
+        unsigned int value = values.at(i);
+
+        if (variableIndex >= _variableList.size())
+            throw Error("LogVariableValue: invalid variable index " + to_string(variableIndex));
+
+        Variable & var = _variableList.at(variableIndex);
+
+        if (value == var.CurrentValue)
+            return;
+
+        var.CurrentValue = value;
+        var.WriteVariableValue(_outputFile);
+    }
 }
 
 void ValueChangeDump::Variable::WriteVariableDefinition(std::ofstream & os) const
