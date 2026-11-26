@@ -1,7 +1,14 @@
 #include "HoymilesHmDtu.h"
+#include "OnScopeExit.h"
+#include "ValueChangeDump.h"
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <iterator>
 #include <numeric>
 #include <sstream>
+#include <unistd.h>
 
 using Packet = RF24::Packet;
 
@@ -36,6 +43,41 @@ static uint16_t Crc16(const Packet & data, size_t start, size_t end)
             crc = (crc >> 1) ^ ((crc & 1) ? 0xa001 : 0);
     }
     return crc;
+}
+
+static void TestVcd(HoymilesHmDtu & monitor)
+{
+    auto path = (std::filesystem::temp_directory_path() / "hm-rpd-XXXXXX").string();
+    const int fd = mkstemp(path.data());
+    Check(fd >= 0, "could not create test VCD file");
+    close(fd);
+    OnScopeExit cleanup([&] {
+        std::error_code error;
+        std::filesystem::remove(path, error);
+    });
+
+    ValueChangeDump writer;
+    const auto channel = writer.DefineVariable("RX_Channel", "wire", 7, 3);
+    const auto rpd = writer.DefineVariable("RPD", "wire", 1);
+    writer.OpenFile(path);
+    // A grouped update must reach RPD even when the channel is unchanged.
+    writer.LogVariableValue({channel, rpd}, {3, 1});
+    writer.CloseFile();
+    {
+        std::ifstream file(path);
+        const std::string vcd{std::istreambuf_iterator<char>(file), {}};
+        Check(vcd.find("\n1b\n") != std::string::npos, "VCD dropped a grouped update");
+    }
+
+    RF24::onWrite = [](const Packet &, uint8_t) -> bool {
+        throw std::logic_error("passive RPD scan transmitted");
+    };
+    monitor.CaptureRadioActivity(path, std::chrono::milliseconds(50));
+    std::ifstream file(path);
+    const std::string vcd{std::istreambuf_iterator<char>(file), {}};
+    Check(vcd.find("$scope module radio $end") != std::string::npos &&
+          vcd.find("RX_Channel") != std::string::npos && vcd.find("\n1b\n") != std::string::npos,
+          "passive RPD sample missing from VCD");
 }
 
 int main()
@@ -141,5 +183,9 @@ int main()
     };
     Check(query(), "lost ACK prevented reception");
     Check(tried.front() == 3 && std::find(tried.begin(), tried.end(), 23) != tried.end(), "channel search");
+
+    TestVcd(monitor);
+    replay({a,b,c});
+    Check(query(), "HM query failed after passive RPD scan");
     std::cout << "HM-600 replay passed\n";
 }

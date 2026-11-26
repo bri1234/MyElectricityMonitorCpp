@@ -26,6 +26,7 @@ IN THE SOFTWARE.
 
 #include "Utils.h"
 #include "OnScopeExit.h"
+#include "ValueChangeDump.h"
 #include <array>
 #include <sstream>
 
@@ -723,4 +724,51 @@ int HoymilesHmDtu::TestInverterCommunication()
     cout << "Complete CRC-verified datasets: " << successes << "/" << queries
          << ", fragment requests: " << repairs << ", RX timeouts: " << timeouts << endl;
     return successes;
+}
+
+void HoymilesHmDtu::CaptureRadioActivity(const string & fileName, milliseconds duration)
+{
+    AssertCommunicationIsInitialized();
+    if (duration <= 0ms)
+        throw Error("Radio capture duration must be positive");
+
+    ValueChangeDump trace;
+    const vector<unsigned int> signals{
+        trace.DefineVariable("RX_Channel", "wire", 7),
+        trace.DefineVariable("RPD", "wire", 1)
+    };
+    vector<unsigned int> values(signals.size());
+    trace.OpenFile(fileName, "1.0", "Passive nRF24 RPD samples");
+
+    _radio->stopListening();
+    _radio->setAutoAck(false);
+    OnScopeExit restore([&] {
+        _radio->stopListening();
+        _radio->flush_rx();
+        _radio->setAutoAck(true);
+    });
+    _sync.reset();
+
+    constexpr auto sampleInterval = 250us;
+    const auto deadline = Clock::now() + duration;
+    for (size_t index = 0; Clock::now() < deadline; index = (index + 1) % Channels.size())
+    {
+        const auto channel = Channels[index];
+        _radio->stopListening();
+        _radio->setChannel(channel);
+        _radio->startListening();
+        const auto channelDeadline = min(deadline, Clock::now() + ChannelTime);
+        values[0] = channel;
+
+        // Allow the receiver to settle before recording the first RPD sample.
+        while (Clock::now() < channelDeadline)
+        {
+            this_thread::sleep_for(sampleInterval);
+            if (Clock::now() >= channelDeadline)
+                break;
+            values[1] = _radio->testRPD();
+            trace.LogVariableValue(signals, values);
+        }
+    }
+    trace.CloseFile();
 }

@@ -40,7 +40,8 @@ constexpr int RESTART_DELAY = 30;
 
 int main(int argc, char **argv)
 {
-    if (argc >= 2 && string_view(argv[1]) == "--test-hm")
+    const string_view mode = argc >= 2 ? argv[1] : "";
+    if (mode == "--test-hm" || mode == "--scan-rpd")
     {
         try
         {
@@ -49,6 +50,13 @@ int main(int argc, char **argv)
             HoymilesHmDtu radio(configuration.GetInverterSerialNumber(),
                 GPIO_PIN_HOYMILES_HM_DTU_CSN, GPIO_PIN_HOYMILES_HM_DTU_CE);
             radio.InitializeCommunication();
+            if (mode == "--scan-rpd")
+            {
+                const string path = argc >= 4 ? argv[3] : "rpd_scan.vcd";
+                radio.CaptureRadioActivity(path);
+                cout << "RPD capture written to " << path << endl;
+                return 0;
+            }
             return radio.TestInverterCommunication() > 0 ? 0 : 1;
         }
         catch (const exception & exc)

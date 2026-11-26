@@ -25,6 +25,7 @@ target_sources(MyElectricityMonitor
         SerialPort.cpp
         OnScopeExit.cpp
         CancellationToken.cpp
+        ValueChangeDump.cpp
         main.cpp
 )
 
@@ -45,7 +46,7 @@ target_link_libraries(MyElectricityMonitor
 
 include(CTest)
 if(BUILD_TESTING)
-    add_executable(HoymilesHmReplay tests/HoymilesHmReplay.cpp HoymilesHmDtu.cpp Utils.cpp)
+    add_executable(HoymilesHmReplay tests/HoymilesHmReplay.cpp HoymilesHmDtu.cpp Utils.cpp ValueChangeDump.cpp)
     target_include_directories(HoymilesHmReplay PRIVATE tests/fake ${CMAKE_CURRENT_SOURCE_DIR})
     add_test(NAME HoymilesHmReplay COMMAND HoymilesHmReplay)
 endif()

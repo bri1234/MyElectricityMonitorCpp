@@ -66,6 +66,12 @@ public:
     /// @param message The log message.
     void LogInfo(const std::string & fileName, int lineNumber, const std::string & message);
 
+    /// @brief Logs an warning message.
+    /// @param fileName The source code filename.
+    /// @param lineNumber The source code line number.
+    /// @param message The log message.
+    void LogWarn(const std::string & fileName, int lineNumber, const std::string & message);
+
     /// @brief Logs an error message.
     /// @param fileName The source code filename.
     /// @param lineNumber The source code line number.
@@ -98,5 +104,7 @@ private:
 };
 
 #define LOG_INFO(MESSAGE) Logger::Instance().LogInfo(__FILE__, __LINE__, MESSAGE)
+
+#define LOG_WARN(MESSAGE) Logger::Instance().LogWarn(__FILE__, __LINE__, MESSAGE)
 
 #define LOG_ERROR(ERROR_MESSAGE) Logger::Instance().LogError(__FILE__, __LINE__, ERROR_MESSAGE)

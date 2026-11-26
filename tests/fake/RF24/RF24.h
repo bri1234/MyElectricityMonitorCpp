@@ -28,7 +28,7 @@ public:
     void openWritingPipe(const uint8_t *) {}
     void openReadingPipe(int, const uint8_t *) {}
     void enableDynamicPayloads() {}
-    void setAutoAck(bool) {}
+    void setAutoAck(bool enabled) { autoAck = enabled; }
     void setRetries(int, int count)
     {
         if (count != 0)
@@ -37,6 +37,12 @@ public:
     void startListening() { listening = true; }
     void stopListening() { listening = false; }
     void setChannel(uint8_t value) { channel = value; }
+    bool testRPD() const
+    {
+        if (!listening || autoAck)
+            throw std::logic_error("RPD sampled outside passive RX mode");
+        return true;
+    }
     void flush_rx() { fifo.clear(); }
     void flush_tx() {}
     bool available() const { return listening && !fifo.empty(); }
@@ -58,8 +64,8 @@ public:
     }
     bool write(const void * src, uint8_t length)
     {
-        if (listening)
-            throw std::logic_error("write in RX mode");
+        if (listening || !autoAck)
+            throw std::logic_error("write outside acknowledged TX mode");
         const auto * bytes = static_cast<const uint8_t *>(src);
         return onWrite(Packet(bytes, bytes + length), channel);
     }
@@ -67,5 +73,6 @@ public:
 
 private:
     bool listening = false;
+    bool autoAck = true;
     uint8_t channel = 0;
 };

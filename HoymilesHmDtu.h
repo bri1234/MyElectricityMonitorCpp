@@ -231,6 +231,10 @@ public:
     /// @return Number of complete, CRC-verified datasets in 100 queries.
     int TestInverterCommunication();
 
+    /// @brief Records receive channel and RPD samples in a VCD file.
+    void CaptureRadioActivity(const std::string & fileName,
+        std::chrono::milliseconds duration = std::chrono::seconds(10));
+
 private:
     // the nRF24L01 receive pipeline
     constexpr static int RX_PIPE_NUM = 1;

@@ -149,6 +149,17 @@ fragments, repair requests, timeouts, elapsed time and decoded readings.
 The summary counts complete CRC-verified datasets. The command exits with a
 failure status if all queries fail or radio initialization fails.
 
+Use the separate passive RPD scan to capture radio activity for GTKWave:
+
+```bash
+./MyElectricityMonitor --scan-rpd ../configuration.json rpd_scan.vcd
+```
+
+The scan samples the five HM radio channels for 10 seconds and records
+`RX_Channel` and the nRF24 received power detector state (`RPD`).
+RPD indicates radio energy on the sampled channel. The scan sends no requests
+or acknowledgements. The output path defaults to `rpd_scan.vcd`.
+
 ## Start the application automatically after boot: CRON job
 
 Use the command **crontab -e** to edit the user crontab:
