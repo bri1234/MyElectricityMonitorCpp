@@ -27,11 +27,12 @@ IN THE SOFTWARE.
 #include <RF24/RF24.h>
 
 #include <vector>
-#include <map>
+#include <chrono>
+#include <optional>
 #include <cstdint>
 #include <format>
 #include <memory>
-#include <random>
+#include <ostream>
 
 /// @brief Class for communication with HM300, HM350, HM400, HM600, HM700, HM800, HM1200 & HM1500 inverter. (DTU means 'data transfer unit'.)
 class HoymilesHmDtu
@@ -64,7 +65,7 @@ public:
         ChannelReadings(int channelNumber);
 
         /// @brief Returns the channel number.
-        /// @return The channel number: 1, 2 or 4.
+        /// @return The one-based PV input number.
         int GetChannelNumber() const { return _channelNumber; }
 
         /// @brief Returns the voltage.
@@ -227,7 +228,8 @@ public:
     bool QueryInverterInfo(Readings & readings, int numberOfRetries = 20, double waitBeforeRetry = 1.0);
 
     /// @brief Tests the inverter communication.
-    void TestInverterCommunication();
+    /// @return Number of complete, CRC-verified datasets in 100 queries.
+    int TestInverterCommunication();
 
 private:
     // the nRF24L01 receive pipeline
@@ -239,11 +241,16 @@ private:
     // maximum size of packets that can be sent with the nRF24L01 module
     constexpr static int MAX_PACKET_SIZE = 32;
 
-    // list of channels where the inverter is listening for requests
-    static const std::vector <int> TX_CHANNELS;
-
-    // list of channels where the inverter sends the responses depending on the channel, where the request was received
-    static const std::map <int, std::vector <int>> RX_CHANNEL_LISTS;
+    using Clock = std::chrono::steady_clock;
+    struct ChannelPhase
+    {
+        size_t index;
+        Clock::time_point slotStart;
+    };
+    struct ResponseFragments;
+    struct QueryDiagnostics;
+    std::optional<ChannelPhase> _sync;
+    size_t _searchIndex = 0;
 
     std::shared_ptr<RF24> _radio;
 
@@ -258,10 +265,6 @@ private:
     std::vector<uint8_t> _readingPipeAddress;
 
     int _inverterNumberOfChannels;
-
-    // needed for random numbers
-    std::minstd_rand _randomEngine;
-    std::uniform_int_distribution<int> _randomTxChannel;
 
     /// @brief Generates a 4 byte DTU radio ID (data transfer unit, this device) from the system UUID. The radio ID is used to send and receive packets.
     /// @return The 4 bytes DTU radio ID.
@@ -280,16 +283,6 @@ private:
     /// @brief Throws an error if the communication is not intialized.
     void AssertCommunicationIsInitialized() const;
 
-    /// @brief Replaces bytes with special meaning by escape sequences.
-    /// @param dest The destination buffer with the escaped data.
-    /// @param src The source buffer.
-    static void EscapeData(buffer_type & dest, const buffer_type & src);
-
-    /// @brief Remove escape sequences for bytes with special meanings.
-    /// @param dest The destination buffer with the unescaped data.
-    /// @param src The source buffer.
-    static void UnescapeData(buffer_type & dest, const buffer_type & src);
-    
     /// @brief Calculates CRC8 checksum for communication with hoymiles inverters. poly = 0x101; reversed = False; init-value = 0x00; XOR-out = 0x00; Check = 0x31
     /// @param data The byte array on which the ckecksum is to be calculated.
     /// @param startPos The start position. (index starts at 0)
@@ -331,25 +324,10 @@ private:
     static void CreateRequestInfoPacket(buffer_type & packet,
         const buffer_type & receiverAddr, const buffer_type & senderAddr, uint32_t currentTime);
     
-    /// @brief Send a request to the inverter and scan receive channels for the response.
-    /// @param responsePacketList List of reponse packets.
-    /// @param txChannel The channel where the request shall be sent.
-    /// @param rxChannelList The channel list to scan for responses.
-    /// @param txPacket The request packet that shall be sent.
-    /// @param scanTimePerRxChannelMs Duration to scan per receive channel in milliseconds.
-    void SendRequestAndScanForResponses(std::vector <buffer_type> & responsePacketList,
-        int txChannel, const std::vector <int> & rxChannelList, const buffer_type & txPacket,
-        int scanTimePerRxChannelMs);
-    
-    /// @brief Checks if the responses are valid and returns the assembled data.
-    /// @param responseData The assembled response data.
-    /// @param responsePacketList List of received responses packets.
-    /// @param inverterRadioAddress The inverter radio address (4 bytes).
-    /// @param inverterNumberOfChannels The number of inverter channels.
-    /// @return True if all responses are valid.
-    static bool EvaluateInverterInfoResponse(buffer_type & responseData,
-        const std::vector <buffer_type> & responsePacketList,
-        const buffer_type & inverterRadioAddress, int inverterNumberOfChannels);
+    ChannelPhase SendPacket(const buffer_type & packet, Clock::time_point deadline, std::ostream * trace);
+    void ReceiveFragments(ResponseFragments & fragments, ChannelPhase phase,
+        Clock::time_point deadline, std::ostream * trace);
+    bool QueryInverterInfo(Readings & readings, int numberOfRetries, double waitBeforeRetry, QueryDiagnostics * diagnostics);
 
     /// @brief Extracts the inverter infos from the reponse data.
     /// @param readings The inverter readings.

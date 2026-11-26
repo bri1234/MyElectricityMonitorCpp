@@ -42,3 +42,10 @@ target_link_libraries(MyElectricityMonitor
         gpiod
         rf24)
 
+
+include(CTest)
+if(BUILD_TESTING)
+    add_executable(HoymilesHmReplay tests/HoymilesHmReplay.cpp HoymilesHmDtu.cpp Utils.cpp)
+    target_include_directories(HoymilesHmReplay PRIVATE tests/fake ${CMAKE_CURRENT_SOURCE_DIR})
+    add_test(NAME HoymilesHmReplay COMMAND HoymilesHmReplay)
+endif()

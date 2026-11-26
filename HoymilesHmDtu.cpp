@@ -26,7 +26,8 @@ IN THE SOFTWARE.
 
 #include "Utils.h"
 #include "OnScopeExit.h"
-#include "Logger.h"
+#include <array>
+#include <sstream>
 
 #include <unistd.h>
 #include <iostream>
@@ -37,15 +38,33 @@ using namespace std;
 using namespace Utils;
 using namespace std::chrono;
 
-const std::vector<int> HoymilesHmDtu::TX_CHANNELS = { 3, 23, 40, 61, 75 };
+namespace
+{
+constexpr array<uint8_t, 5> Channels{3, 23, 40, 61, 75};
+constexpr auto Slot = 2596us;
+constexpr auto ChannelTime = 2 * Slot;
+constexpr auto SearchTime = 10 * Slot;
+// Reacquire after a gap of three host rotations.
+constexpr auto SyncLifetime = 3 * SearchTime;
 
-const std::map <int, std::vector <int>> HoymilesHmDtu::RX_CHANNEL_LISTS = {
-    {  3, { 23, 40, 61 }},
-    { 23, { 40, 61, 75 }},
-    { 40, { 61, 75,  3 }},
-    { 61, { 75,  3, 23 }},
-    { 75, {  3, 23, 40 }},
-};
+constexpr size_t ChannelIndex(size_t start, steady_clock::duration elapsed, microseconds dwell)
+{
+    return (start + elapsed / dwell) % Channels.size();
+}
+
+static_assert(ChannelIndex(0, 0us, ChannelTime) == 0);
+static_assert(ChannelIndex(0, 5191us, ChannelTime) == 0);
+static_assert(ChannelIndex(0, 5192us, ChannelTime) == 1);
+constexpr array<size_t, 10> HostCycle{0, 0, 1, 1, 2, 2, 3, 3, 4, 4};
+static_assert([] {
+    for (int slot = 0; slot < 10; ++slot)
+        if (ChannelIndex(0, slot * Slot, ChannelTime) != HostCycle[slot])
+            return false;
+    return ChannelIndex(0, 10 * Slot, ChannelTime) == 0;
+}());
+static_assert(ChannelIndex(0, 9 * Slot, SearchTime) == 0);
+static_assert(ChannelIndex(0, 10 * Slot, SearchTime) == 1);
+}
 
 HoymilesHmDtu::ChannelReadings::ChannelReadings()
 : _channelNumber(0)
@@ -96,7 +115,13 @@ void HoymilesHmDtu::Readings::ExtractReadings(int numberOfChannels, const buffer
     if ((numberOfChannels != 1) && (numberOfChannels != 2) && (numberOfChannels != 4))
         throw Error(format("ExtractReadings: Invalid number of channels: {} (valid: 1, 2 or 4)", numberOfChannels));
 
-    _channelReadingsList.resize(numberOfChannels);
+    const size_t minimumBytes = numberOfChannels == 1 ? 30 : (numberOfChannels == 2 ? 42 : 62);
+    if (data.size() < minimumBytes)
+        throw Error("Incomplete realtime dataset");
+
+    _channelReadingsList.clear();
+    for (int input = 1; input <= numberOfChannels; ++input)
+        _channelReadingsList.emplace_back(input);
 
     switch (numberOfChannels)
     {
@@ -130,10 +155,10 @@ void HoymilesHmDtu::Readings::ExtractReadings(const buffer_type & data,
     _acVoltage = GetUInt16(data, idxV) / 10.0;          // V
     _acFrequency = GetUInt16(data, idxF) / 100.0;       // Hz
     _acPower = GetUInt16(data, idxP) / 10.0;            // W
-    _acReactivePower = GetUInt16(data, idxRP) / 10.0;   // var (W)
+    _acReactivePower = static_cast<int16_t>(GetUInt16(data, idxRP)) / 10.0;   // var (W)
     _acCurrent = GetUInt16(data, idxC) / 100.0;         // A
     _acPowerFactor = GetUInt16(data, idxPF) / 1000.0;   // -
-    _temperature = GetUInt16(data, idxT) / 10.0;        // °C
+    _temperature = static_cast<int16_t>(GetUInt16(data, idxT)) / 10.0;        // °C
     _EVT = GetUInt16(data, idxEVT) / 1.0;               // -
 }
 
@@ -141,8 +166,6 @@ HoymilesHmDtu::HoymilesHmDtu(const std::string & inverterSerialNumber, int pinCS
     : _inverterSerialNumber(inverterSerialNumber)
     , _pinCSn(pinCSn)
     , _pinCE(pinCE)
-    , _randomEngine()
-    , _randomTxChannel(0, TX_CHANNELS.size() - 1)
 {
     if (_inverterSerialNumber.length() != 12)
         throw Error(format("Inverter serial number has not 12 digits: {}", _inverterSerialNumber));
@@ -252,82 +275,6 @@ void HoymilesHmDtu::AssertCommunicationIsInitialized() const
     }
 }
 
-void HoymilesHmDtu::EscapeData(buffer_type & dest, const buffer_type & src)
-{
-    dest.clear();
-    dest.reserve(src.size() * 2);
-
-    // Replaces bytes with special meaning by escape sequences.
-    // 0x7D -> 0x7D 0x5D
-    // 0x7E -> 0x7D 0x5E
-    // 0x7F -> 0x7D 0x5F
-
-    for (uint8_t b : src)
-    {
-        switch (b)
-        {
-            case 0x7D:
-                dest.push_back(0x7D);
-                dest.push_back(0x5D);
-                break;
-
-            case 0x7E:
-                dest.push_back(0x7D);
-                dest.push_back(0x5E);
-                break;
-
-            case 0x7F:
-                dest.push_back(0x7D);
-                dest.push_back(0x5F);
-                break;
-
-            default:
-                dest.push_back(b);
-                break;
-        }
-    }
-}
-
-void HoymilesHmDtu::UnescapeData(buffer_type & dest, const buffer_type & src)
-{
-    dest.clear();
-    dest.reserve(src.size() + 16);
-
-    for (size_t idx = 0; idx < src.size(); idx++)
-    {
-        uint8_t b = src[idx];
-
-        if (b == 0x7D)
-        {
-            idx++;
-            b = src.at(idx);
-
-            switch (b)
-            {
-                case 0x5D:
-                    dest.push_back(0x7D);
-                    break;
-
-                case 0x5E:
-                    dest.push_back(0x7E);
-                    break;
-
-                case 0x5F:
-                    dest.push_back(0x7F);
-                    break;
-
-                default:
-                    throw Error("UnescapeData(): Invalid data, can not decode.");
-            }
-        }
-        else
-        {
-            dest.push_back(b);
-        }
-
-    }
-}
-
 uint8_t HoymilesHmDtu::CalculateCrc8(const buffer_type & data, size_t startPos, size_t endPos)
 {
     uint32_t crc = 0;
@@ -397,7 +344,8 @@ void HoymilesHmDtu::InitializeCommunication()
 
     radio->stopListening();
 
-    radio->setDataRate(RF24_250KBPS);
+    if (!radio->setDataRate(RF24_250KBPS))
+        throw Error("RF24 does not support 250 kbit/s");
     radio->setPALevel(RF24_PA_MIN);
     radio->setCRCLength(RF24_CRC_16);
     radio->setAddressWidth(5);
@@ -406,9 +354,11 @@ void HoymilesHmDtu::InitializeCommunication()
     radio->openReadingPipe(RX_PIPE_NUM, &(_readingPipeAddress[0]));
 
     radio->enableDynamicPayloads();
-    radio->setRetries(3, 10);
+    radio->setRetries(2, 0); // one transmission per software-timed slot
     radio->setAutoAck(true);
 
+    _sync.reset();
+    _searchIndex = 0;
     _radio = radio;
 }
 
@@ -476,297 +426,301 @@ void HoymilesHmDtu::CreateRequestInfoPacket(buffer_type & packet, const buffer_t
     packet.clear();
     packet.reserve(MAX_PACKET_SIZE);
 
-    vector<uint8_t> tmpPacket;
-    tmpPacket.reserve(MAX_PACKET_SIZE);
-    
     // add the header
-    CreatePacketHeader(tmpPacket, 0x15, receiverAddr, senderAddr, 0x80);
+    CreatePacketHeader(packet, 0x15, receiverAddr, senderAddr, 0x80);
 
     // add the payload
-    size_t payloadStartPos = tmpPacket.size();
-    CreateRequestInfoPayload(tmpPacket, currentTime);
+    size_t payloadStartPos = packet.size();
+    CreateRequestInfoPayload(packet, currentTime);
 
     // add the payload checksum
-    uint16_t payloadChecksum = CalculateCrc16(tmpPacket, payloadStartPos, tmpPacket.size());
-    UInt16ToBytes(tmpPacket, payloadChecksum, true);
+    uint16_t payloadChecksum = CalculateCrc16(packet, payloadStartPos, packet.size());
+    UInt16ToBytes(packet, payloadChecksum, true);
 
     // add the packet checksum
-    uint8_t packetChecksum = CalculateCrc8(tmpPacket, 0, tmpPacket.size());
-    tmpPacket.push_back(packetChecksum);
+    uint8_t packetChecksum = CalculateCrc8(packet, 0, packet.size());
+    packet.push_back(packetChecksum);
 
-    // check the length
-    if (tmpPacket.size() != 27)
-        throw Error(format("Internal error CreateRequestInfoPacket: packet size {} != 27", packet.size()));
-
-    // replace special characters
-    EscapeData(packet, tmpPacket);
-
-    if (packet.size() > MAX_PACKET_SIZE)
-        throw Error(format("Internal error CreateRequestInfoPacket: packet size {} > MAX_PACKET_SIZE {}", packet.size(), MAX_PACKET_SIZE));
 }
 
-void HoymilesHmDtu::SendRequestAndScanForResponses(std::vector <buffer_type> & responsePacketList,
-    int txChannel, const std::vector <int> & rxChannelList, const buffer_type & txPacket,
-    int scanTimePerRxChannelMs)
+struct HoymilesHmDtu::QueryDiagnostics
 {
-    responsePacketList.clear();
+    ostringstream events;
+    unsigned repairs = 0;
+    unsigned timeouts = 0;
+};
 
-    AssertCommunicationIsInitialized();
+struct HoymilesHmDtu::ResponseFragments
+{
+    array<buffer_type, 16> parts; // HM uses one-based, four-bit fragment numbers
+    unsigned last = 0;
+    unsigned highest = 0;
+    bool conflict = false;
 
-    if (txPacket.size() > MAX_PACKET_SIZE)
-        throw Error(format("SendRequestAndScanForResponses: packet size {} > MAX_PACKET_SIZE {}", txPacket.size(), MAX_PACKET_SIZE));
-
-    uint32_t rxChannelIndex = 0;
-
-    buffer_type packet;
-    packet.reserve(MAX_PACKET_SIZE);
-
-    // send request to the inverter
-    _radio->stopListening();
-    _radio->setChannel(txChannel);
-    _radio->flush_rx();
-
-    _radio->write(&(txPacket[0]), (uint8_t)txPacket.size());
-    
-    // scan channels for response from the inverter
-    _radio->startListening();
-    
-    auto startTime1 = steady_clock::now();
-    while (duration_cast<milliseconds>(steady_clock::now() - startTime1).count() <= 1000)
+    bool Add(const buffer_type & packet, const buffer_type & inverter)
     {
-        int rxChannel = rxChannelList[rxChannelIndex];
-        rxChannelIndex++;
-        if (rxChannelIndex >= rxChannelList.size())
-            rxChannelIndex = 0;
+        if (packet.size() < 12 || packet[0] != 0x95 || !CheckPacketChecksum(packet) ||
+            !equal(inverter.begin(), inverter.end(), packet.begin() + 1) ||
+            !equal(inverter.begin(), inverter.end(), packet.begin() + 5))
+            return false;
 
-        _radio->setChannel(rxChannel);
+        const unsigned number = packet[9] & 0x7f;
+        const bool final = (packet[9] & 0x80) != 0;
+        if (number == 0 || number >= parts.size() || (!final && packet.size() != 27))
+            return false;
 
-        auto startTime2 = steady_clock::now();
-        while (duration_cast<milliseconds>(steady_clock::now() - startTime2).count() <= scanTimePerRxChannelMs)
+        buffer_type payload(packet.begin() + 10, packet.end() - 1);
+        if ((last && (number > last || final != (number == last))) ||
+            (final && highest > number) ||
+            (!parts[number].empty() && (parts[number] != payload || final != (number == last))))
         {
-            if (_radio->available())
-            {
-                // read packet data
-                uint8_t packetLen = _radio->getDynamicPayloadSize();
-
-                // cout << "~~~ radio available rx channel " << rxChannel << " packet len " << (int)packetLen << endl;
-
-                packet.resize(packetLen);
-                _radio->read(&(packet[0]), packetLen);
-
-                _radio->flush_rx();
-
-                // store raw packet data
-                responsePacketList.push_back(packet);
-            }
+            conflict = true;
+            return false;
         }
+        parts[number] = move(payload);
+        highest = max(highest, number);
+        if (final)
+            last = number;
+        return true;
     }
-}
 
-bool HoymilesHmDtu::EvaluateInverterInfoResponse(buffer_type & responseData, const std::vector<buffer_type> & responsePacketList,
-    const buffer_type & inverterRadioAddress, int inverterNumberOfChannels)
-{
-    responseData.clear();
-    int numberOfResponses = inverterNumberOfChannels + 1;
-
-    // did we get the right number of responses?
-    if ((int)responsePacketList.size() != numberOfResponses)
-        return false;
-
-    for (int idx = 0; idx < numberOfResponses; idx++)
+    // 0xff requests the last fragment when its number is still unknown.
+    uint8_t MissingFrame() const
     {
-        const auto & response = responsePacketList[idx];
-
-        if (response.size() < 12)
-            return false;
-
-        // are the frame numbers valid?
-        int frameNumberResponse = response[9];
-        int frameNumberExpected = idx + 1;
-        if (frameNumberExpected == numberOfResponses) // is it the last frame?
-            frameNumberExpected |= 0x80;
-
-        if (frameNumberResponse != frameNumberExpected)
-            return false;
-
-        // are the receiver addresses valid?
-        if (!equal(inverterRadioAddress.begin(),  inverterRadioAddress.end(), response.begin() + 1))
-            return false;
-
-        if (!equal(inverterRadioAddress.begin(),  inverterRadioAddress.end(), response.begin() + 5))
-            return false;
-
-        // is the checksum valid?
-        if (!CheckPacketChecksum(response))
-            return false;
-        
-        // header is 10 bytes and last byte is the checksum
-        responseData.insert(responseData.end(), response.begin() + 10, response.end() - 1);
+        if (!last)
+            return 0xff;
+        for (unsigned number = 1; number <= last; ++number)
+            if (parts[number].empty())
+                return 0x80 | number;
+        return 0;
     }
 
-    return true;
+    buffer_type Assemble() const
+    {
+        buffer_type data;
+        for (unsigned number = 1; number <= last; ++number)
+            AppendRange(data, parts[number]);
+        return data;
+    }
+};
+
+HoymilesHmDtu::ChannelPhase HoymilesHmDtu::SendPacket(const buffer_type & packet,
+    Clock::time_point deadline, ostream * trace)
+{
+    _radio->stopListening();
+    const auto now = Clock::now();
+    if (_sync && now - _sync->slotStart >= SyncLifetime)
+        _sync.reset();
+
+    auto firstSlot = now;
+    if (_sync)
+    {
+        const auto elapsed = now - _sync->slotStart;
+        firstSlot = _sync->slotStart + (elapsed / ChannelTime + 1) * ChannelTime;
+    }
+
+    ChannelPhase phase{_searchIndex, now};
+    auto nextSlot = firstSlot;
+    auto searchStart = firstSlot;
+    unsigned attempts = 0;
+    bool ack = false;
+    while (nextSlot < deadline && nextSlot < firstSlot + 16 * Slot)
+    {
+        this_thread::sleep_until(nextSlot);
+        const auto start = Clock::now();
+        if (start >= deadline || start >= firstSlot + 16 * Slot)
+            break;
+
+        if (_sync && start - _sync->slotStart >= SyncLifetime)
+        {
+            _sync.reset();
+            searchStart = start;
+        }
+        phase.index = _sync ? ChannelIndex(_sync->index, start - _sync->slotStart, ChannelTime)
+                            : ChannelIndex(_searchIndex, start - searchStart, SearchTime);
+        _radio->setChannel(Channels[phase.index]);
+        phase.slotStart = Clock::now();
+        ++attempts;
+        ack = _radio->write(packet.data(), static_cast<uint8_t>(packet.size()));
+        if (ack)
+            break;
+        // Skip elapsed slots after a scheduling delay instead of sending a burst.
+        nextSlot = firstSlot + ((Clock::now() - firstSlot) / Slot + 1) * Slot;
+    }
+    if (ack)
+    {
+        _sync = phase;
+        _searchIndex = phase.index;
+    }
+    else
+    {
+        _sync.reset();
+        _searchIndex = (phase.index + 1) % Channels.size();
+    }
+    if (!attempts)
+        _radio->setChannel(Channels[phase.index]);
+    _radio->startListening(); // receive even if the request's ACK was lost
+    if (trace)
+        *trace << " TX(last)=" << +Channels[phase.index] << " attempts=" << attempts << " ACK=" << ack;
+    return phase;
 }
 
-bool HoymilesHmDtu::ExtractInverterReadings(Readings & readings, const buffer_type & responseData, int numberOfChannels)
+void HoymilesHmDtu::ReceiveFragments(ResponseFragments & fragments, ChannelPhase phase,
+    Clock::time_point deadline, ostream * trace)
 {
-    // check the checksum
-    uint16_t crc1 = GetUInt16(responseData, responseData.size() - 2);
-    uint16_t crc2 = CalculateCrc16(responseData, 0, responseData.size() - 2);
-    if (crc1 != crc2)
+    size_t listening = phase.index;
+    while (Clock::now() < deadline)
+    {
+        const auto index = ChannelIndex(phase.index, Clock::now() - phase.slotStart, ChannelTime);
+        if (index != listening)
+        {
+            _radio->stopListening();
+            _radio->setChannel(Channels[index]);
+            _radio->startListening();
+            listening = index;
+        }
+        while (_radio->available() && Clock::now() < deadline)
+        {
+            const uint8_t length = _radio->getDynamicPayloadSize();
+            if (!length || length > MAX_PACKET_SIZE)
+            {
+                // RF24 discards the corrupt FIFO on an invalid payload width.
+                break;
+            }
+            buffer_type packet(length);
+            _radio->read(packet.data(), length);
+            if (fragments.Add(packet, _inverterRadioAddress) && trace)
+                *trace << " RX=" << +packet[9];
+            if (fragments.conflict || fragments.MissingFrame() == 0)
+                return;
+        }
+        this_thread::sleep_for(100us);
+    }
+}
+
+bool HoymilesHmDtu::ExtractInverterReadings(Readings & readings,
+    const buffer_type & responseData, int numberOfChannels)
+{
+    if (responseData.size() < 2)
         return false;
-    
+    const size_t length = responseData.size() - 2;
+    if (CalculateCrc16(responseData, 0, length) != GetUInt16(responseData, length))
+        return false;
+
+    Readings decoded;
     try
     {
-        readings.ExtractReadings(numberOfChannels, responseData);
+        decoded.ExtractReadings(numberOfChannels, {responseData.begin(), responseData.end() - 2});
     }
-    catch (const exception &)
+    catch (const Error &)
     {
         return false;
     }
-
+    readings = move(decoded);
     return true;
 }
 
 bool HoymilesHmDtu::QueryInverterInfo(Readings & readings, int numberOfRetries, double waitBeforeRetry)
 {
+    return QueryInverterInfo(readings, numberOfRetries, waitBeforeRetry, nullptr);
+}
+
+bool HoymilesHmDtu::QueryInverterInfo(Readings & readings, int numberOfRetries,
+    double waitBeforeRetry, QueryDiagnostics * diagnostics)
+{
     AssertCommunicationIsInitialized();
-
-    _radio->flush_tx();
-    _radio->flush_rx();
-
-    // set power level to minimum at the end of the function
-    OnScopeExit onScopeExit( [&] { _radio->setPALevel(RF24_PA_MIN); } );
-
-    // increase power level
+    ostream * trace = diagnostics ? &diagnostics->events : nullptr;
+    OnScopeExit restore([&] {
+        _radio->stopListening();
+        _radio->setPALevel(RF24_PA_MIN);
+    });
     _radio->setPALevel(RADIO_POWER_LEVEL);
-
-    vector <uint8_t> txPacket, unescapedPacket;
-    vector <buffer_type> responsePacketList, unescapedPacketList;
-    buffer_type responseData;
-
-    for (int retryIndex = 0; retryIndex < numberOfRetries; retryIndex++)
+    for (int attempt = 0; attempt < numberOfRetries; ++attempt)
     {
-        if (retryIndex > 0)
-            this_thread::sleep_for(milliseconds((int)(waitBeforeRetry * 1000.0)));
-
-        // create packet to send to the inverter
-        uint32_t tm = static_cast<uint32_t>(duration_cast<seconds>(system_clock::now().time_since_epoch()).count());
-
-        CreateRequestInfoPacket(txPacket, _inverterRadioAddress, _dtuRadioAddress, tm);
-        
-        // select a random channel for the request
-        int txChannelIndex = _randomTxChannel(_randomEngine);
-        int txChannel = TX_CHANNELS.at(txChannelIndex);
-
-        auto rxChannelList = RX_CHANNEL_LISTS.find(txChannel);
-        if (rxChannelList == RX_CHANNEL_LISTS.end())
-            throw Error(format("Internal error: no RX channels for tx channel {}", txChannel));
-
-        try
+        if (attempt)
+            this_thread::sleep_for(duration<double>(waitBeforeRetry));
+        _radio->stopListening();
+        _radio->flush_tx();
+        _radio->flush_rx();
+        ResponseFragments fragments;
+        buffer_type request;
+        const auto timestamp = duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
+        CreateRequestInfoPacket(request, _inverterRadioAddress, _dtuRadioAddress, timestamp);
+        const auto deadline = Clock::now() + 1s;
+        while (Clock::now() < deadline)
         {
-            const int scanTimePerRxChannelMs = 5;
-
-            // send request and scan for responses
-            SendRequestAndScanForResponses(responsePacketList, txChannel, rxChannelList->second, txPacket, scanTimePerRxChannelMs);
-
-            // undo replace of special characters
-            for (const auto & responsePacket : responsePacketList)
+            auto phase = SendPacket(request, deadline, trace);
+            ReceiveFragments(fragments, phase, min(deadline, Clock::now() + 150ms), trace);
+            if (fragments.conflict)
             {
-                UnescapeData(unescapedPacket, responsePacket);
-                unescapedPacketList.push_back(unescapedPacket);
+                if (trace)
+                    *trace << " conflicting fragments";
+                break;
             }
-
-            // did we get a valid response?
-            bool success = EvaluateInverterInfoResponse(responseData, unescapedPacketList, _inverterRadioAddress, _inverterNumberOfChannels);
-            if (success)
+            if (!fragments.highest)
+                break;
+            const uint8_t missing = fragments.MissingFrame();
+            if (!missing)
             {
-                success = ExtractInverterReadings(readings, responseData, _inverterNumberOfChannels);
-                if (success)
+                if (ExtractInverterReadings(readings, fragments.Assemble(), _inverterNumberOfChannels))
+                {
+                    if (trace)
+                        *trace << " CRC16=OK";
                     return true;
+                }
+                if (trace)
+                    *trace << " invalid CRC16 or dataset length";
+                break;
+            }
+            if (Clock::now() >= deadline)
+                break;
+            request.clear();
+            CreatePacketHeader(request, 0x15, _inverterRadioAddress, _dtuRadioAddress, missing);
+            request.push_back(CalculateCrc8(request, 0, request.size()));
+            if (diagnostics)
+            {
+                ++diagnostics->repairs;
+                if (missing == 0xff)
+                    *trace << " request-last-fragment";
+                else
+                    *trace << " request-fragment=" << (missing & 0x7f);
             }
         }
-        catch (const exception & exc)
+        if (diagnostics && !fragments.conflict && fragments.MissingFrame())
         {
-            // not successful, try again
-            LOG_ERROR(exc);
-        }       
+            ++diagnostics->timeouts;
+            *trace << " RX timeout";
+        }
     }
-
     return false;
 }
 
-void HoymilesHmDtu::TestInverterCommunication()
+int HoymilesHmDtu::TestInverterCommunication()
 {
-    AssertCommunicationIsInitialized();
-
-    _radio->flush_tx();
-    _radio->flush_rx();
-
-    // set power level to minimum at the end of the function
-    OnScopeExit onScopeExit( [&] { _radio->setPALevel(RF24_PA_MIN); } );
-
-    // increase power level
-    _radio->setPALevel(RADIO_POWER_LEVEL);
-
-    vector <uint8_t> txPacket;
-    vector <buffer_type> responsePacketList;
-    buffer_type responseData;
-
-    // create packet to send to the inverter
-    uint32_t tm = static_cast<uint32_t>(duration_cast<seconds>(system_clock::now().time_since_epoch()).count());
-
-    CreateRequestInfoPacket(txPacket, _inverterRadioAddress, _dtuRadioAddress, tm);
-    
-    try
+    constexpr int queries = 100;
+    int successes = 0;
+    unsigned repairs = 0;
+    unsigned timeouts = 0;
+    for (int query = 1; query <= queries; ++query)
     {
-        for (int txChannel : TX_CHANNELS)
+        Readings readings;
+        QueryDiagnostics diagnostics;
+        const auto start = Clock::now();
+        const bool success = QueryInverterInfo(readings, 1, 0, &diagnostics);
+        repairs += diagnostics.repairs;
+        timeouts += diagnostics.timeouts;
+        cout << query << "/" << queries << diagnostics.events.str() << " elapsed="
+             << duration_cast<milliseconds>(Clock::now() - start).count() << "ms"
+             << (success ? " OK" : " FAILED") << endl;
+        if (success)
         {
-            // *** select a TX channel for the request from channels: 3, 23, 40, 61, 75 ***
-            // int txChannel = 3;
-
-            cout << "***** Using TX channel: " << txChannel << " *****" << endl;
-
-            auto rxChannelList = RX_CHANNEL_LISTS.find(txChannel);
-            if (rxChannelList == RX_CHANNEL_LISTS.end())
-                throw Error(format("Internal error: no RX channels for tx channel {}", txChannel));
-
-            for (int waitTimePerRxChannelScanMs = 1; waitTimePerRxChannelScanMs < 10; waitTimePerRxChannelScanMs++)
-            {
-                vector <size_t> rxPacketsCounts;
-                
-                cout << "test wait time " << waitTimePerRxChannelScanMs << " ms: " << flush;
-
-                for (int retries = 0; retries < 20; retries++)
-                {
-                    SendRequestAndScanForResponses(responsePacketList, txChannel, rxChannelList->second, txPacket, waitTimePerRxChannelScanMs);
-                    rxPacketsCounts.push_back(responsePacketList.size());
-                }
-
-                double sum = 0.0;
-                int count1 = 0;
-                int count2 = 0;
-                int count3 = 0;
-
-                for (auto packetCount : rxPacketsCounts)
-                {
-                    sum += packetCount;
-                    if (packetCount == 1)
-                        count1++;
-                    if (packetCount == 2)
-                        count2++;
-                    if (packetCount == 3)
-                        count3++;
-                }
-                double avg = sum / rxPacketsCounts.size();
-
-                cout << "Avg rx packets count: " << avg << " Rcv #1: " << count1 << " Rcv #2: " << count2 << " Rcv #3: " << count3 << endl;
-            }
+            ++successes;
+            readings.Print(cout);
         }
+        if (query < queries)
+            this_thread::sleep_for(1s);
     }
-    catch (const exception & exc)
-    {
-        // not successful, try again
-        LOG_ERROR(exc);
-    }       
+    cout << "Complete CRC-verified datasets: " << successes << "/" << queries
+         << ", fragment requests: " << repairs << ", RX timeouts: " << timeouts << endl;
+    return successes;
 }
-

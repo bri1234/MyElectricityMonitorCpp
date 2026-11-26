@@ -25,6 +25,7 @@ IN THE SOFTWARE.
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <string_view>
 
 #include "Logger.h"
 #include "Database.h"
@@ -39,6 +40,24 @@ constexpr int RESTART_DELAY = 30;
 
 int main(int argc, char **argv)
 {
+    if (argc >= 2 && string_view(argv[1]) == "--test-hm")
+    {
+        try
+        {
+            Configuration configuration;
+            configuration.Load(argc >= 3 ? argv[2] : "configuration.json");
+            HoymilesHmDtu radio(configuration.GetInverterSerialNumber(),
+                GPIO_PIN_HOYMILES_HM_DTU_CSN, GPIO_PIN_HOYMILES_HM_DTU_CE);
+            radio.InitializeCommunication();
+            return radio.TestInverterCommunication() > 0 ? 0 : 1;
+        }
+        catch (const exception & exc)
+        {
+            cerr << exc.what() << endl;
+            return 1;
+        }
+    }
+
     string configurationFile;
     if (argc > 1)
         configurationFile = argv[1];

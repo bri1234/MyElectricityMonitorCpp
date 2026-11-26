@@ -129,6 +129,26 @@ If you want a debug version, use this:
 cmake -DCMAKE_BUILD_TYPE=Debug ..
 ```
 
+## HM-600 radio tests
+
+The replay test feeds captured packets into the C++ query through a simulated RF24.
+From the build directory, run:
+
+```bash
+ctest -R HoymilesHmReplay --output-on-failure
+```
+
+On the Raspberry Pi, run the radio diagnostic from the build directory:
+
+```bash
+./MyElectricityMonitor --test-hm ../configuration.json
+```
+
+It runs 100 queries against the configured inverter and prints ACKs, received
+fragments, repair requests, timeouts, elapsed time and decoded readings.
+The summary counts complete CRC-verified datasets. The command exits with a
+failure status if all queries fail or radio initialization fails.
+
 ## Start the application automatically after boot: CRON job
 
 Use the command **crontab -e** to edit the user crontab:
